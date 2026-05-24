@@ -1,154 +1,124 @@
+"use strict";
+
+require("dotenv").config();
+
 const express = require("express");
-
-const http = require("http");
-
-const cors = require("cors");
-
-const path = require("path");
-
-const os = require("os");
-
-const si = require("systeminformation");
-
-const registerRoutes   = require("./routes/register");
-
-const commandRoutes    = require("./routes/command");
-
-const monitoringRoutes = require("./routes/monitoring");
-
-const metricsRoutes    = require("./routes/metrics");
-
-const aiRoutes         = require("./routes/ai");
+const http    = require("http");
+const cors    = require("cors");
+const path    = require("path");
 
 const { initWebSocket, broadcast } = require("./websocket/socket");
+const { loadModules }              = require("./hub/moduleLoader");
+const { buildProxyRoutes }         = require("./hub/dispatch");
+const { startWatchdog }            = require("./hub/watchdog");
 
-const DEVICES = require("./deviceStore");
+const DEVICES = require("./stores/devices");
+const METRICS = require("./stores/metrics");
 
-const METRICS = require("./metricsStore");
+// ── Config from .env ─────────────────────────────────────────────────────────
+const config = {
+    HUB_IP:               process.env.HUB_IP               || "0.0.0.0",
+    HUB_PORT:             parseInt(process.env.HUB_PORT)    || 8000,
+    NODE_UID:             process.env.NODE_UID              || "Hub",
+    NODE_NAME:            process.env.NODE_NAME             || "Hub",
+    NODE_SHELL:           process.env.NODE_SHELL            || "/bin/zsh",
+    ENABLED_MODULES:      (process.env.ENABLED_MODULES || "").split(",").map(s => s.trim()).filter(Boolean),
+    HEARTBEAT_TIMEOUT_MS: parseInt(process.env.HEARTBEAT_TIMEOUT_MS) || 60_000,
+    WATCHDOG_INTERVAL_MS: parseInt(process.env.WATCHDOG_INTERVAL_MS) || 15_000,
+    METRICS_INTERVAL_MS:  parseInt(process.env.METRICS_INTERVAL_MS)  || 5_000,
 
+    // Inference engine (passed through to module init if enabled locally)
+    OLLAMA_URL:           process.env.OLLAMA_URL,
+    OLLAMA_DEFAULT_MODEL: process.env.OLLAMA_DEFAULT_MODEL,
+    OLLAMA_MODELS:        process.env.OLLAMA_MODELS,
+    OLLAMA_SYSTEM_PROMPT: process.env.OLLAMA_SYSTEM_PROMPT
+};
+
+// ── Express + HTTP ───────────────────────────────────────────────────────────
 const app    = express();
-
 const server = http.createServer(app);
 
 app.use(cors());
-
 app.use(express.json());
 
+// ── Static Routes (registration, monitoring, metrics ingestion) ──────────────
+app.use(require("./routes/register"));
+app.use(require("./routes/monitoring"));
+app.use(require("./routes/metrics"));
 
-// ROUTES
-app.use(registerRoutes);
-app.use(commandRoutes);
-app.use(monitoringRoutes);
-app.use(metricsRoutes);
-app.use(aiRoutes);
+// ── Static Dashboard ─────────────────────────────────────────────────────────
+app.use(express.static(path.join(__dirname, "public")));
 
-
-// STATIC DASHBOARD
-app.use(express.static(
-    path.join(__dirname, "public")
-));
-
-
-// WEBSOCKET
+// ── WebSocket ────────────────────────────────────────────────────────────────
 initWebSocket(server);
 
+// ── Boot ─────────────────────────────────────────────────────────────────────
+(async () => {
 
-// ── MACMINI SELF-REGISTRATION ────────────────────────────────────────────────
-// The hub registers itself into the device store so it appears on the
-// dashboard alongside the remote nodes. No HTTP call needed — we write
-// directly into the shared in-memory store.
-DEVICES["MacMini"] = {
-    uid:           "MacMini",
-    name:          "Mac Mini",
-    ip:            "10.120.0.250",
-    port:          8000,
-    capabilities:  ["hub", "metrics", "execute-command"],
-    status:        "online",
-    lastHeartbeat: Date.now()
-};
+    // 1. Self-register the hub into the device store
+    DEVICES[config.NODE_UID] = {
+        uid:           config.NODE_UID,
+        name:          config.NODE_NAME,
+        ip:            config.HUB_IP,
+        port:          config.HUB_PORT,
+        capabilities:  [],   // filled dynamically below
+        status:        "online",
+        lastHeartbeat: Date.now()
+    };
 
-// Collect the hub's own CPU / RAM / disk every 5 s, store in METRICS,
-// refresh lastHeartbeat so the watchdog never marks it offline, and
-// broadcast a metrics-update so the dashboard gauges animate live.
-async function pushHubMetrics() {
-    try {
-        const [load, mem, disks] = await Promise.all([
-            si.currentLoad(),
-            si.mem(),
-            si.fsSize()
-        ]);
-
-        const primaryDisk = disks.sort((a, b) => b.size - a.size)[0] || {};
-
-        const metrics = {
-            cpu:  Math.round(load.currentLoad),
-            ram:  {
-                used:    mem.used,
-                total:   mem.total,
-                percent: Math.round((mem.used / mem.total) * 100)
-            },
-            disk: {
-                used:    primaryDisk.used  || 0,
-                total:   primaryDisk.size  || 0,
-                percent: Math.round(primaryDisk.use || 0)
-            },
-            platform: "darwin",
-            uptime:   os.uptime()
-        };
-
-        METRICS["MacMini"] = { ...metrics, timestamp: Date.now() };
-
-        // Keep the watchdog happy — hub is always considered alive
-        DEVICES["MacMini"].lastHeartbeat = Date.now();
-
+    // 2. Load modules
+    //    system-monitor gets a special hook: reportMetrics writes directly
+    //    into the METRICS store and broadcasts, instead of HTTP-pushing.
+    const reportMetrics = (metrics) => {
+        METRICS[config.NODE_UID] = { ...metrics, timestamp: Date.now() };
+        DEVICES[config.NODE_UID].lastHeartbeat = Date.now();
         broadcast({
             type:     "metrics-update",
-            deviceId: "MacMini",
-            metrics:  METRICS["MacMini"]
+            deviceId: config.NODE_UID,
+            metrics:  METRICS[config.NODE_UID]
         });
+    };
 
-    } catch (err) {
-        console.error("[HUB METRICS]", err.message);
+    const modules = await loadModules(config.ENABLED_MODULES, config, { reportMetrics });
+
+    // 3. Populate hub's capability list from loaded modules
+    const capabilities = modules.map(m => m.capability);
+    // Always include "hub" capability for identification
+    capabilities.unshift("hub");
+    DEVICES[config.NODE_UID].capabilities = capabilities;
+
+    // 4. Mount module routes locally (for hub self-execution)
+    for (const mod of modules) {
+        if (mod.routes) app.use(mod.routes);
     }
-}
 
-// Run once immediately on boot, then every 5 s
-pushHubMetrics();
-setInterval(pushHubMetrics, 5_000);
+    // 5. Build proxy/dispatch routes from ALL known module proxy definitions
+    //    This includes modules the hub DOESN'T have loaded — we still need
+    //    to proxy for remote nodes that DO have them.
+    //    Load ALL module definitions to discover their proxy routes.
+    const allModuleNames = [
+        "command-executor",
+        "system-monitor",
+        "inference-engine"
+        // Future: "docker-manager", "ssh-engine"
+    ];
 
+    const allModules = [];
+    for (const name of allModuleNames) {
+        try {
+            allModules.push(require(`./modules/${name}`));
+        } catch (_) { /* module not installed, skip */ }
+    }
 
-// ── HEARTBEAT WATCHDOG ───────────────────────────────────────────────────────
-// MacMini is excluded — its lastHeartbeat is kept fresh by pushHubMetrics().
-// Only remote devices that go silent for >60 s are marked offline.
-const HEARTBEAT_TIMEOUT_MS = 60_000;
-const WATCHDOG_INTERVAL_MS = 15_000;
+    buildProxyRoutes(app, allModules, config.NODE_UID);
 
-setInterval(() => {
+    // 6. Start heartbeat watchdog
+    startWatchdog(config.NODE_UID, config.HEARTBEAT_TIMEOUT_MS, config.WATCHDOG_INTERVAL_MS);
 
-    const now = Date.now();
-    let changed = false;
-
-    Object.values(DEVICES).forEach(device => {
-
-        if (
-            device.uid    !== "MacMini"  &&
-            device.status === "online"   &&
-            (now - device.lastHeartbeat) > HEARTBEAT_TIMEOUT_MS
-        ) {
-            device.status = "offline";
-            changed = true;
-            console.log(`[OFFLINE] ${device.uid}`);
-        }
+    // 7. Listen
+    server.listen(config.HUB_PORT, "0.0.0.0", () => {
+        console.log(`[CYBERLIFE HUB ONLINE] ${config.NODE_UID} @ ${config.HUB_IP}:${config.HUB_PORT}`);
+        console.log(`[CAPABILITIES] ${capabilities.join(", ")}`);
     });
 
-    if (changed) {
-        broadcast({ type: "device-update", devices: DEVICES });
-    }
-
-}, WATCHDOG_INTERVAL_MS);
-
-
-server.listen(8000, "0.0.0.0", () => {
-
-    console.log("[CYBERLIFE HUB ONLINE] MacMini @ 10.120.0.250:8000");
-});
+})();

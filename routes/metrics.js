@@ -2,7 +2,7 @@ const express = require("express");
 
 const router = express.Router();
 
-const METRICS = require("../metricsStore");
+const METRICS = require("../stores/metrics");
 
 const { broadcast } = require("../websocket/socket");
 

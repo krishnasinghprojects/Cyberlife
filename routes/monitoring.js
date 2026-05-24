@@ -2,7 +2,7 @@ const express = require("express");
 
 const router = express.Router();
 
-const DEVICES = require("../deviceStore");
+const DEVICES = require("../stores/devices");
 
 router.get("/monitoring", (req, res) => {
 
