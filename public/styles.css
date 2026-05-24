@@ -798,6 +798,101 @@ body {
 .chat-send-btn:hover { background: #ff1a47; box-shadow: 0 0 14px var(--accent-glow); }
 .chat-send-btn:disabled { background: var(--surface-3); color: var(--text-muted); cursor: not-allowed; }
 
+/* ─── DOCKER VIEW ─────────────────────────────────────────────────────────── */
+.docker-view {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.docker-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+}
+
+.docker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    align-content: start;
+}
+
+.container-card {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.container-card:hover {
+    border-color: var(--border-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.container-head {
+    padding: 16px;
+    background: var(--surface-3);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.container-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.container-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.container-image {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+}
+
+.container-status {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    letter-spacing: 0.05em;
+}
+.container-status.running { background: rgba(255, 61, 90, 0.15); color: var(--online); }
+.container-status.exited { background: rgba(196, 64, 85, 0.15); color: var(--offline); }
+.container-status.created { background: rgba(245, 158, 11, 0.15); color: var(--g-ram); }
+
+.container-gauges {
+    display: flex;
+    justify-content: space-evenly;
+    padding: 16px 0;
+    background: var(--surface-2);
+}
+
+.container-actions {
+    display: flex;
+    gap: 8px;
+    padding: 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+}
+
+.container-actions .toolbar-btn {
+    flex: 1;
+    justify-content: center;
+}
+
 /* ─── SCROLLBARS ──────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -814,7 +909,7 @@ body {
         gap: 8px;
     }
 
-    .header-brand { flex: 1; }
+    .header-brand { flex: 1 1 100%; justify-content: center; }
 
     .mode-toggle {
         order: 3;
@@ -831,6 +926,8 @@ body {
 
     .header-stats {
         order: 2;
+        width: 100%;
+        justify-content: center;
         margin-left: 0;
         gap: 5px;
     }
@@ -851,6 +948,10 @@ body {
     .btn-label     { display: none; }
 
     .toolbar-btn { padding: 6px 10px; }
+
+    .docker-toolbar { justify-content: center; }
+    .docker-toolbar .btn-label { display: inline; }
+    .docker-toolbar .toolbar-btn { width: 100%; justify-content: center; padding: 12px; }
 
     .chat-messages { padding: 14px 12px; }
 

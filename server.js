@@ -99,8 +99,9 @@ initWebSocket(server);
     const allModuleNames = [
         "command-executor",
         "system-monitor",
-        "inference-engine"
-        // Future: "docker-manager", "ssh-engine"
+        "inference-engine",
+        "ssh-engine",
+        "docker-manager"
     ];
 
     const allModules = [];

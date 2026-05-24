@@ -59,6 +59,11 @@
                     <i data-lucide="terminal-square"></i>
                     <span>SSH</span>
                 </button>
+                <button class="mode-btn" id="btn-docker"
+                        role="tab" aria-selected="false" aria-controls="view-docker">
+                    <i data-lucide="box"></i>
+                    <span>Docker</span>
+                </button>
             </div>
 
             <!-- Stats -->
@@ -186,6 +191,19 @@
                 </div>
 
                 <div class="ssh-terminal-container" id="terminal-container"></div>
+            </div>
+
+            <!-- DOCKER VIEW -->
+            <div class="view docker-view hidden" id="view-docker" role="tabpanel">
+                <div class="docker-toolbar">
+                    <button class="toolbar-btn" id="btn-docker-refresh" title="Refresh Containers">
+                        <i data-lucide="refresh-cw"></i>
+                        <span class="btn-label">Refresh</span>
+                    </button>
+                </div>
+                <div class="docker-grid" id="docker-grid">
+                    <!-- Cards will be injected here -->
+                </div>
             </div>
 
         </main>

@@ -38,6 +38,12 @@ const btnSsh       = document.getElementById("btn-ssh");
 const viewMonitor  = document.getElementById("view-monitoring");
 const viewChat     = document.getElementById("view-chat");
 const viewSsh      = document.getElementById("view-ssh");
+const btnDocker    = document.getElementById("btn-docker");
+const viewDocker   = document.getElementById("view-docker");
+const btnDockerRef = document.getElementById("btn-docker-refresh");
+const dockerGrid   = document.getElementById("docker-grid");
+
+let dockerLoop     = null;
 
 const sshDeviceSel   = document.getElementById("ssh-device-select");
 const sshHostInput   = document.getElementById("ssh-host-input");
@@ -151,24 +157,34 @@ function setMode(mode) {
     const isMonitor = mode === "monitoring";
     const isChat    = mode === "chat";
     const isSsh     = mode === "ssh";
+    const isDocker  = mode === "docker";
 
     btnMonitor.classList.toggle("active", isMonitor);
     btnChat.classList.toggle("active", isChat);
     if (btnSsh) btnSsh.classList.toggle("active", isSsh);
+    if (btnDocker) btnDocker.classList.toggle("active", isDocker);
 
     btnMonitor.setAttribute("aria-selected", isMonitor);
     btnChat.setAttribute("aria-selected", isChat);
     if (btnSsh) btnSsh.setAttribute("aria-selected", isSsh);
+    if (btnDocker) btnDocker.setAttribute("aria-selected", isDocker);
 
     viewMonitor.classList.toggle("hidden", !isMonitor);
     viewChat.classList.toggle("hidden", !isChat);
     if (viewSsh) viewSsh.classList.toggle("hidden", !isSsh);
+    if (viewDocker) viewDocker.classList.toggle("hidden", !isDocker);
+
+    if (dockerLoop) { clearInterval(dockerLoop); dockerLoop = null; }
 
     if (isChat) refreshAiDeviceSelect();
     if (isSsh) {
         refreshSshDeviceSelect();
         initTerminal();
         setTimeout(() => { if (xtermFit) xtermFit.fit(); }, 50);
+    }
+    if (isDocker) {
+        fetchContainers();
+        dockerLoop = setInterval(fetchContainers, 3000);
     }
 
     if (!isMonitor) refreshIcons();
@@ -177,6 +193,8 @@ function setMode(mode) {
 btnMonitor.addEventListener("click", () => setMode("monitoring"));
 btnChat.addEventListener("click",    () => setMode("chat"));
 if (btnSsh) btnSsh.addEventListener("click", () => setMode("ssh"));
+if (btnDocker) btnDocker.addEventListener("click", () => setMode("docker"));
+if (btnDockerRef) btnDockerRef.addEventListener("click", fetchContainers);
 
 /* ─── INIT ────────────────────────────────────────────────────────────────── */
 async function init() {
@@ -816,6 +834,92 @@ if (btnSshConnect) {
         }));
     });
 }
+
+/* ─── DOCKER MANAGEMENT ───────────────────────────────────────────────────── */
+async function fetchContainers() {
+    if (currentMode !== "docker") return;
+    try {
+        const res = await fetch("/containers");
+        if (!res.ok) throw new Error("Fetch failed");
+        const containers = await res.json();
+        renderContainers(containers);
+    } catch (err) {
+        console.error("[DOCKER]", err);
+        if (dockerGrid) {
+            dockerGrid.innerHTML = `
+                <div class="empty-state" style="grid-column: 1 / -1; display:flex; flex-direction:column; align-items:center; color: var(--offline); opacity: 0.8; padding: 40px;">
+                    <i data-lucide="alert-triangle" style="width:48px;height:48px;margin-bottom:16px;"></i>
+                    <h3 style="margin: 0 0 8px 0; color: var(--text);">Docker Engine Unreachable</h3>
+                    <p style="margin: 0; font-size: 0.9rem;">Please ensure Docker Desktop is running on the Hub machine.</p>
+                </div>
+            `;
+            refreshIcons();
+        }
+    }
+}
+
+function renderContainers(containers) {
+    if (!dockerGrid) return;
+    if (containers.length === 0) {
+        dockerGrid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-dim);">No containers found. Spin one up!</div>`;
+        return;
+    }
+
+    const html = containers.map(c => {
+        const isRun = c.state === "running";
+        const statusClass = c.state.toLowerCase() === "running" ? "running" : 
+                            c.state.toLowerCase() === "exited" ? "exited" : "created";
+                            
+        return `
+        <div class="container-card">
+            <div class="container-head">
+                <div class="container-identity">
+                    <div class="container-name">${esc(c.name)}</div>
+                    <div class="container-image" title="${esc(c.image)}">${esc(c.image.substring(0, 30))}</div>
+                </div>
+                <div class="container-status ${statusClass}">${esc(c.state)}</div>
+            </div>
+            
+            <div class="container-gauges">
+                ${makeGauge("cpu", "CPU", "#dc143c")}
+                ${makeGauge("ram", "RAM", "#f59e0b")}
+            </div>
+
+            <div class="container-actions">
+                ${!isRun ? `<button class="toolbar-btn" onclick="dockerAction('${c.id}', 'start')">
+                    <i data-lucide="play"></i> <span class="btn-label">Start</span>
+                </button>` : ''}
+                ${isRun ? `<button class="toolbar-btn" onclick="dockerAction('${c.id}', 'stop')">
+                    <i data-lucide="square"></i> <span class="btn-label">Stop</span>
+                </button>` : ''}
+                <button class="toolbar-btn" onclick="dockerAction('${c.id}', 'restart')">
+                    <i data-lucide="rotate-cw"></i> <span class="btn-label">Restart</span>
+                </button>
+            </div>
+        </div>`;
+    }).join("");
+
+    dockerGrid.innerHTML = html;
+    refreshIcons();
+    
+    const cards = Array.from(dockerGrid.querySelectorAll('.container-card'));
+    containers.forEach((c, i) => {
+        const card = cards[i];
+        if (card) {
+            setGauge(card, "cpu", c.state === "running" ? c.cpu : null);
+            setGauge(card, "ram", c.state === "running" ? c.ram : null);
+        }
+    });
+}
+
+window.dockerAction = async function(id, action) {
+    try {
+        await fetch(`/containers/${id}/${action}`, { method: 'POST' });
+        fetchContainers(); // fast refresh
+    } catch (err) {
+        console.error("[DOCKER Action]", err);
+    }
+};
 
 /* ─── BOOT ────────────────────────────────────────────────────────────────── */
 initTheme();

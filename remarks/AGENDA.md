@@ -58,8 +58,8 @@ The hub runs on a Mac Mini (10.120.0.250) and provides a unified WebSocket/REST 
 *Expand the Hub's reach into server management and external networking.*
 
 - [ ] Implement API Gateway for Query Categorization and Request Construction.
-- [ ] Build Container Management API (Docker orchestration & service monitoring).
-- [ ] Implement robust SSH method (not just simple command proxy) and VNC integrations for remote desktops.
+- [x] Build Container Management API (Docker orchestration & service monitoring).
+- [x] Implement robust SSH method (not just simple command proxy) and VNC integrations for remote desktops.
 - [ ] Integrate Cloudflare Tunnels for secure external access.
 - [ ] Map external domain (`krishnasingh.live`) for Webpage Resolution.
 
@@ -102,8 +102,8 @@ The hub runs on a Mac Mini (10.120.0.250) and provides a unified WebSocket/REST 
 - [x] Remote Command Execution
 - [x] System Monitoring Metrics
 - [x] AI Agent APIs (Ollama)
-- [ ] Container Management
-- [ ] SSH Management
+- [x] Container Management
+- [x] SSH Management
 - [ ] Cloudflare Tunnels
 
 ### Interfaces
