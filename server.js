@@ -7,7 +7,7 @@ const http    = require("http");
 const cors    = require("cors");
 const path    = require("path");
 
-const { initWebSocket, broadcast } = require("./websocket/socket");
+const { initWebSocket, registerListener, sendTo, broadcast } = require("./websocket/socket");
 const { loadModules }              = require("./hub/moduleLoader");
 const { buildProxyRoutes }         = require("./hub/dispatch");
 const { startWatchdog }            = require("./hub/watchdog");
@@ -79,7 +79,7 @@ initWebSocket(server);
         });
     };
 
-    const modules = await loadModules(config.ENABLED_MODULES, config, { reportMetrics });
+    const modules = await loadModules(config.ENABLED_MODULES, config, { reportMetrics, registerListener, sendTo });
 
     // 3. Populate hub's capability list from loaded modules
     const capabilities = modules.map(m => m.capability);

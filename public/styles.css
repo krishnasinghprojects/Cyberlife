@@ -41,6 +41,19 @@
     --radius-sm:   6px;
 }
 
+[data-theme="light"] {
+    --bg:         #fef7f9;
+    --surface:    #ffffff;
+    --surface-2:  #faeef1;
+    --surface-3:  #f3dee2;
+    --text:       #2e1820;
+    --text-dim:   #7a4a54;
+    --text-muted: #956972;
+    --border:       rgba(220, 20, 60, 0.2);
+    --border-hover: rgba(220, 20, 60, 0.35);
+    --border-glow:  rgba(220, 20, 60, 0.5);
+}
+
 /* ─── RESET ───────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 button { cursor: pointer; font-family: var(--font-ui); }
@@ -160,6 +173,25 @@ body {
     background: var(--accent);
     color: #fff;
     box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* Theme Toggle */
+.theme-toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 50%;
+    transition: color 0.2s, background 0.2s;
+    outline: none;
+}
+
+.theme-toggle-btn:hover {
+    color: var(--accent);
+    background: var(--surface-2);
 }
 
 /* Stats Pills */
@@ -366,8 +398,9 @@ body {
     fill: none;
     stroke-width: 5;
     stroke-linecap: round;
-    stroke-dasharray: 0 175.929;
-    transition: stroke-dasharray 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+    stroke-dasharray: 175.929 175.929;
+    stroke-dashoffset: 175.929;
+    transition: stroke-dashoffset 0.9s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .gauge-fill-cpu  { stroke: var(--g-cpu);  }
@@ -825,6 +858,28 @@ body {
 
     .chat-input { padding: 12px 14px; font-size: 0.82rem; }
     .chat-send-btn { padding: 12px 16px; }
+
+    /* SSH overrides */
+    .ssh-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .ssh-toolbar .toolbar-group {
+        justify-content: space-between;
+    }
+    .ssh-input {
+        width: auto;
+        flex: 1;
+        max-width: none;
+    }
+    .ssh-toolbar .toolbar-actions {
+        margin-left: 0;
+        margin-top: 5px;
+    }
+    .ssh-toolbar .toolbar-btn {
+        flex: 1;
+        justify-content: center;
+    }
 }
 
 /* ─── TABLET OVERRIDES (600–1079px) ──────────────────────────────────────── */
@@ -835,3 +890,48 @@ body {
 
 /* Lucide icon default size inside Lucide-rendered SVGs */
 [data-lucide] { display: inline-block; }
+
+/* ─── SSH VIEW ───────────────────────────────────────────────────────────── */
+
+.ssh-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.ssh-toolbar {
+    flex-shrink: 0;
+}
+
+.ssh-input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    padding: 5px 10px;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 110px;
+}
+
+.ssh-input:focus {
+    border-color: var(--accent);
+}
+
+.ssh-terminal-container {
+    flex: 1;
+    min-height: 0;
+    padding: 10px;
+    background: var(--bg);
+}
+
+/* xterm.js overrides */
+.xterm-viewport {
+    background-color: transparent !important;
+}
+.xterm .xterm-screen {
+    padding: 5px;
+}

@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/@xterm/xterm/css/xterm.css" />
     <link rel="stylesheet" href="styles.css">
 </head>
 
@@ -53,10 +54,18 @@
                     <i data-lucide="message-square"></i>
                     <span>Chat</span>
                 </button>
+                <button class="mode-btn" id="btn-ssh"
+                        role="tab" aria-selected="false" aria-controls="view-ssh">
+                    <i data-lucide="terminal-square"></i>
+                    <span>SSH</span>
+                </button>
             </div>
 
             <!-- Stats -->
             <div class="header-stats">
+                <button class="theme-toggle-btn" id="btn-theme" title="Toggle theme" aria-label="Toggle light/dark mode">
+                    <i data-lucide="sun" id="theme-icon"></i>
+                </button>
                 <div class="stat-pill">
                     <i data-lucide="server" class="pill-icon"></i>
                     <span class="pill-val" id="count-total">0</span>
@@ -150,11 +159,42 @@
 
             </div>
 
+            <!-- SSH VIEW -->
+            <div class="view ssh-view hidden" id="view-ssh" role="tabpanel">
+                <div class="chat-toolbar ssh-toolbar">
+                    <div class="toolbar-group">
+                        <label class="toolbar-label" for="ssh-device-select">Host</label>
+                        <select class="toolbar-select" id="ssh-device-select">
+                            <option value="">Custom IP</option>
+                        </select>
+                        <input class="chat-input ssh-input" id="ssh-host-input" type="text" placeholder="192.168.1.x" />
+                    </div>
+                    <div class="toolbar-group">
+                        <label class="toolbar-label" for="ssh-user">User</label>
+                        <input class="chat-input ssh-input" id="ssh-user" type="text" placeholder="root" />
+                    </div>
+                    <div class="toolbar-group">
+                        <label class="toolbar-label" for="ssh-pass">Pass</label>
+                        <input class="chat-input ssh-input" id="ssh-pass" type="password" placeholder="••••••••" />
+                    </div>
+                    <div class="toolbar-actions">
+                        <button class="toolbar-btn" id="btn-ssh-connect" title="Connect via SSH">
+                            <i data-lucide="plug"></i>
+                            <span class="btn-label" id="ssh-connect-label">Connect</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="ssh-terminal-container" id="terminal-container"></div>
+            </div>
+
         </main>
 
     </div>
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://unpkg.com/@xterm/xterm/lib/xterm.js"></script>
+    <script src="https://unpkg.com/@xterm/addon-fit/lib/addon-fit.js"></script>
     <script src="app.js"></script>
 
 </body>

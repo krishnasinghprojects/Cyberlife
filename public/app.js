@@ -11,7 +11,7 @@ const CIRCUMFERENCE = 175.929; // 2 * Math.PI * 28
 /* ─── STATE ───────────────────────────────────────────────────────────────── */
 let allDevices  = {};
 let allMetrics  = {};
-let currentMode = "monitoring"; // "monitoring" | "chat"
+let currentMode = "monitoring"; // "monitoring" | "chat" | "ssh"
 
 // Chat state
 let chatSessionId    = newSessionId();
@@ -28,10 +28,28 @@ const clockEl      = document.getElementById("clock");
 const dateEl       = document.getElementById("dateline");
 const grid         = document.getElementById("devices-grid");
 
+const btnTheme     = document.getElementById("btn-theme");
+const themeIcon    = document.getElementById("theme-icon");
+
 const btnMonitor   = document.getElementById("btn-monitor");
 const btnChat      = document.getElementById("btn-chat");
+const btnSsh       = document.getElementById("btn-ssh");
+
 const viewMonitor  = document.getElementById("view-monitoring");
 const viewChat     = document.getElementById("view-chat");
+const viewSsh      = document.getElementById("view-ssh");
+
+const sshDeviceSel   = document.getElementById("ssh-device-select");
+const sshHostInput   = document.getElementById("ssh-host-input");
+const sshUserInput   = document.getElementById("ssh-user");
+const sshPassInput   = document.getElementById("ssh-pass");
+const btnSshConnect  = document.getElementById("btn-ssh-connect");
+const sshConnectLbl  = document.getElementById("ssh-connect-label");
+const terminalContainer = document.getElementById("terminal-container");
+
+let xterm = null;
+let xtermFit = null;
+let sshConnected = false;
 
 const aiDeviceSel  = document.getElementById("ai-device-select");
 const modelSel     = document.getElementById("model-select");
@@ -72,31 +90,93 @@ ws.onmessage = ({ data }) => {
     } else if (msg.type === "metrics-update") {
         allMetrics[msg.deviceId] = msg.metrics;
         applyMetrics(msg.deviceId, msg.metrics);
+    } else if (msg.type === "ssh-ready") {
+        sshConnected = true;
+        sshConnectLbl.textContent = "Disconnect";
+        if (xtermFit) {
+            xtermFit.fit();
+            ws.send(JSON.stringify({ type: "ssh-resize", payload: { cols: xterm.cols, rows: xterm.rows } }));
+        }
+        xterm.write("\r\n\x1b[32m[Connected]\x1b[0m\r\n");
+    } else if (msg.type === "ssh-data") {
+        if (xterm) xterm.write(atob(msg.data));
+    } else if (msg.type === "ssh-error") {
+        if (xterm) xterm.write(`\r\n\x1b[31m[SSH Error: ${msg.error}]\x1b[0m\r\n`);
+        resetSshState();
+    } else if (msg.type === "ssh-close") {
+        if (xterm) xterm.write("\r\n\x1b[33m[Connection closed]\x1b[0m\r\n");
+        resetSshState();
     }
 };
+
+/* ─── THEME SWITCHING ─────────────────────────────────────────────────────── */
+function toggleTheme() {
+    const current = document.documentElement.getAttribute("data-theme") || "dark";
+    const next = current === "dark" ? "light" : "dark";
+    
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("theme", next);
+    
+    if (themeIcon) {
+        themeIcon.setAttribute("data-lucide", next === "dark" ? "sun" : "moon");
+        refreshIcons();
+    }
+
+    if (xterm) {
+        xterm.options.theme = {
+            background: next === "dark" ? "#070306" : "#fef7f9",
+            foreground: next === "dark" ? "#f2e6e9" : "#2e1820",
+            cursor: "#dc143c",
+            selectionBackground: "rgba(220, 20, 60, 0.3)"
+        };
+    }
+}
+
+if (btnTheme) btnTheme.addEventListener("click", toggleTheme);
+
+function initTheme() {
+    const savedTheme = localStorage.getItem("theme") || "dark";
+    if (savedTheme === "light") {
+        document.documentElement.setAttribute("data-theme", "light");
+        if (themeIcon) themeIcon.setAttribute("data-lucide", "moon");
+    } else {
+        if (themeIcon) themeIcon.setAttribute("data-lucide", "sun");
+    }
+}
 
 /* ─── MODE SWITCHING ──────────────────────────────────────────────────────── */
 function setMode(mode) {
     currentMode = mode;
 
     const isMonitor = mode === "monitoring";
+    const isChat    = mode === "chat";
+    const isSsh     = mode === "ssh";
 
     btnMonitor.classList.toggle("active", isMonitor);
-    btnChat.classList.toggle("active", !isMonitor);
+    btnChat.classList.toggle("active", isChat);
+    if (btnSsh) btnSsh.classList.toggle("active", isSsh);
+
     btnMonitor.setAttribute("aria-selected", isMonitor);
-    btnChat.setAttribute("aria-selected", !isMonitor);
+    btnChat.setAttribute("aria-selected", isChat);
+    if (btnSsh) btnSsh.setAttribute("aria-selected", isSsh);
 
     viewMonitor.classList.toggle("hidden", !isMonitor);
-    viewChat.classList.toggle("hidden", isMonitor);
+    viewChat.classList.toggle("hidden", !isChat);
+    if (viewSsh) viewSsh.classList.toggle("hidden", !isSsh);
 
-    if (!isMonitor) {
-        refreshAiDeviceSelect();
-        refreshIcons();
+    if (isChat) refreshAiDeviceSelect();
+    if (isSsh) {
+        refreshSshDeviceSelect();
+        initTerminal();
+        setTimeout(() => { if (xtermFit) xtermFit.fit(); }, 50);
     }
+
+    if (!isMonitor) refreshIcons();
 }
 
 btnMonitor.addEventListener("click", () => setMode("monitoring"));
 btnChat.addEventListener("click",    () => setMode("chat"));
+if (btnSsh) btnSsh.addEventListener("click", () => setMode("ssh"));
 
 /* ─── INIT ────────────────────────────────────────────────────────────────── */
 async function init() {
@@ -113,6 +193,7 @@ async function init() {
         Object.entries(allMetrics).forEach(([id, m]) => applyMetrics(id, m));
         updateHeaderStats();
         refreshAiDeviceSelect();
+        refreshSshDeviceSelect();
 
     } catch (err) {
         console.error("[INIT]", err.message);
@@ -269,7 +350,6 @@ function makeGauge(type, label, color) {
                 <circle class="gauge-track" cx="40" cy="40" r="28"/>
                 <circle class="gauge-fill gauge-fill-${type}" cx="40" cy="40" r="28"
                         stroke="${color}"
-                        stroke-dasharray="0 ${CIRCUMFERENCE}"
                         transform="rotate(-90 40 40)"/>
                 <text class="gauge-pct gauge-pct-${type}"
                       x="40" y="44" text-anchor="middle">—</text>
@@ -294,10 +374,9 @@ function setGauge(card, type, value) {
     const v    = value !== null ? Math.min(100, Math.max(0, Math.round(value))) : null;
 
     if (fill) {
-        fill.setAttribute(
-            "stroke-dasharray",
-            v !== null ? `${(v / 100) * CIRCUMFERENCE} ${CIRCUMFERENCE}` : `0 ${CIRCUMFERENCE}`
-        );
+        fill.style.strokeDashoffset = v !== null 
+            ? CIRCUMFERENCE - (v / 100) * CIRCUMFERENCE 
+            : CIRCUMFERENCE;
     }
 
     if (text) text.textContent = v !== null ? `${v}%` : "—";
@@ -634,7 +713,112 @@ function escAttr(str) {
     return String(str ?? "").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+/* ─── SSH TERMINAL LOGIC ──────────────────────────────────────────────────── */
+
+function initTerminal() {
+    if (xterm) return;
+    if (typeof Terminal === "undefined") return;
+
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+
+    xterm = new Terminal({
+        theme: {
+            background: currentTheme === "dark" ? "#070306" : "#fef7f9",
+            foreground: currentTheme === "dark" ? "#f2e6e9" : "#2e1820",
+            cursor: "#dc143c",
+            selectionBackground: "rgba(220, 20, 60, 0.3)"
+        },
+        fontFamily: "JetBrains Mono, monospace",
+        fontSize: 14,
+        cursorBlink: true
+    });
+
+    xtermFit = new FitAddon.FitAddon();
+    xterm.loadAddon(xtermFit);
+
+    xterm.open(terminalContainer);
+    xtermFit.fit();
+
+    xterm.write("\x1b[31mCyberlife SSH Terminal\x1b[0m\r\nSelect a host and click connect.\r\n");
+
+    xterm.onData(data => {
+        if (!sshConnected) return;
+        ws.send(JSON.stringify({
+            type: "ssh-data",
+            data: btoa(data) // Send base64 to avoid encoding issues with raw terminal bits
+        }));
+    });
+
+    window.addEventListener("resize", () => {
+        if (currentMode === "ssh" && xtermFit) {
+            xtermFit.fit();
+            if (sshConnected) {
+                ws.send(JSON.stringify({
+                    type: "ssh-resize",
+                    payload: { cols: xterm.cols, rows: xterm.rows }
+                }));
+            }
+        }
+    });
+}
+
+function refreshSshDeviceSelect() {
+    if (!sshDeviceSel) return;
+    const prev = sshDeviceSel.value;
+    sshDeviceSel.innerHTML = `<option value="">Custom IP</option>`;
+    
+    Object.values(allDevices).forEach(d => {
+        if (d.ip && d.status === "online") {
+            const opt = document.createElement("option");
+            opt.value = d.ip;
+            opt.textContent = `${d.name || d.uid} (${d.ip})`;
+            sshDeviceSel.appendChild(opt);
+        }
+    });
+
+    if (prev) sshDeviceSel.value = prev;
+}
+
+if (sshDeviceSel) {
+    sshDeviceSel.addEventListener("change", () => {
+        if (sshDeviceSel.value) sshHostInput.value = sshDeviceSel.value;
+    });
+}
+
+function resetSshState() {
+    sshConnected = false;
+    if (sshConnectLbl) sshConnectLbl.textContent = "Connect";
+}
+
+if (btnSshConnect) {
+    btnSshConnect.addEventListener("click", () => {
+        if (sshConnected) {
+            ws.send(JSON.stringify({ type: "disconnect" }));
+            resetSshState();
+            return;
+        }
+
+        const host = sshHostInput.value.trim();
+        const username = sshUserInput.value.trim();
+        const password = sshPassInput.value;
+
+        if (!host || !username) {
+            xterm.write("\r\n\x1b[31mError: Host and User required.\x1b[0m\r\n");
+            return;
+        }
+
+        xterm.write(`\r\n\x1b[36mConnecting to ${username}@${host}...\x1b[0m\r\n`);
+        sshConnectLbl.textContent = "Connecting...";
+
+        ws.send(JSON.stringify({
+            type: "ssh-connect",
+            payload: { host, username, password, port: 22 }
+        }));
+    });
+}
+
 /* ─── BOOT ────────────────────────────────────────────────────────────────── */
+initTheme();
 updateSessionBadge();
 
 // Lucide may load after this script; wait for it
