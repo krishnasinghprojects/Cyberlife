@@ -1,0 +1,16 @@
+{
+  "name": "cyberlife-node-agent",
+  "version": "1.0.0",
+  "description": "Cyberlife Node Agent — deploy this on each managed machine",
+  "main": "index.js",
+  "scripts": {
+    "windows": "node windows-node.js",
+    "mac":     "node macbook-node.js"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "axios":             "^1.9.0",
+    "express":           "^4.21.2",
+    "systeminformation": "^5.23.5"
+  }
+}

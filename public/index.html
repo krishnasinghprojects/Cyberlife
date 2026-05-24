@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Cyberlife Hub — Central control panel for all connected devices and AI inference">
+    <title>Cyberlife Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <div class="app">
+
+        <!-- ── HEADER ─────────────────────────────────────────────────────── -->
+        <header class="hub-header">
+
+            <div class="header-brand">
+                <svg class="logo-hex" viewBox="0 0 44 50" fill="none">
+                    <path d="M22 1L42 12.5V37.5L22 49L2 37.5V12.5L22 1Z"
+                          stroke="rgba(220,20,60,0.55)" stroke-width="1.5"
+                          fill="rgba(220,20,60,0.07)"/>
+                    <circle cx="22" cy="25" r="5.5" fill="#dc143c" opacity="0.9"/>
+                    <line x1="22" y1="10" x2="22" y2="17" stroke="#dc143c" stroke-width="1.5" opacity="0.4"/>
+                    <line x1="22" y1="33" x2="22" y2="40" stroke="#dc143c" stroke-width="1.5" opacity="0.4"/>
+                    <line x1="10" y1="17.5" x2="15.5" y2="20.5" stroke="#dc143c" stroke-width="1.5" opacity="0.4"/>
+                    <line x1="28.5" y1="29.5" x2="34" y2="32.5" stroke="#dc143c" stroke-width="1.5" opacity="0.4"/>
+                    <line x1="10" y1="32.5" x2="15.5" y2="29.5" stroke="#dc143c" stroke-width="1.5" opacity="0.4"/>
+                    <line x1="28.5" y1="20.5" x2="34" y2="17.5" stroke="#dc143c" stroke-width="1.5" opacity="0.4"/>
+                </svg>
+                <div class="brand-text">
+                    <h1 class="hub-title">Cyberlife Hub</h1>
+                    <div class="conn-status">
+                        <span class="conn-dot" id="conn-dot"></span>
+                        <span id="conn-label">Connecting…</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mode Toggle -->
+            <div class="mode-toggle" role="tablist" aria-label="View mode">
+                <button class="mode-btn active" id="btn-monitor"
+                        role="tab" aria-selected="true" aria-controls="view-monitoring">
+                    <i data-lucide="activity"></i>
+                    <span>Monitor</span>
+                </button>
+                <button class="mode-btn" id="btn-chat"
+                        role="tab" aria-selected="false" aria-controls="view-chat">
+                    <i data-lucide="message-square"></i>
+                    <span>Chat</span>
+                </button>
+            </div>
+
+            <!-- Stats -->
+            <div class="header-stats">
+                <div class="stat-pill">
+                    <i data-lucide="server" class="pill-icon"></i>
+                    <span class="pill-val" id="count-total">0</span>
+                    <span class="pill-lbl">Devices</span>
+                </div>
+                <div class="stat-pill pill-online">
+                    <i data-lucide="wifi" class="pill-icon"></i>
+                    <span class="pill-val" id="count-online">0</span>
+                    <span class="pill-lbl">Online</span>
+                </div>
+                <div class="stat-pill pill-time">
+                    <span class="pill-val" id="clock">--:--</span>
+                    <span class="pill-lbl" id="dateline">---</span>
+                </div>
+            </div>
+
+        </header>
+
+        <!-- ── MAIN ───────────────────────────────────────────────────────── -->
+        <main class="main-content">
+
+            <!-- MONITORING VIEW -->
+            <div class="view monitoring-view" id="view-monitoring" role="tabpanel">
+                <div id="devices-grid" class="devices-grid">
+                    <div class="empty-state" id="empty-state">
+                        <svg class="empty-ring" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="40"
+                                    stroke="rgba(220,20,60,0.15)" stroke-width="1.5"
+                                    fill="none" stroke-dasharray="6 4"/>
+                            <circle cx="50" cy="50" r="26"
+                                    stroke="rgba(220,20,60,0.08)" stroke-width="1"
+                                    fill="none" stroke-dasharray="3 5"/>
+                            <circle cx="50" cy="50" r="6" fill="rgba(220,20,60,0.25)"/>
+                            <circle cx="50" cy="50" r="3" fill="rgba(220,20,60,0.7)"/>
+                        </svg>
+                        <p class="empty-title">Waiting for devices</p>
+                        <span class="empty-sub">Devices will appear here once they register with the hub</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CHAT VIEW -->
+            <div class="view chat-view hidden" id="view-chat" role="tabpanel">
+
+                <!-- Toolbar -->
+                <div class="chat-toolbar">
+                    <div class="toolbar-group">
+                        <label class="toolbar-label" for="ai-device-select">Node</label>
+                        <select class="toolbar-select" id="ai-device-select">
+                            <option value="">No AI devices</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-group">
+                        <label class="toolbar-label" for="model-select">Model</label>
+                        <select class="toolbar-select" id="model-select">
+                            <option value="">Select node first</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-actions">
+                        <span class="session-badge" id="session-badge"></span>
+                        <button class="toolbar-btn" id="btn-new-chat" title="New conversation">
+                            <i data-lucide="plus"></i>
+                            <span class="btn-label">New</span>
+                        </button>
+                        <button class="toolbar-btn toolbar-btn-danger" id="btn-clear-history" title="Clear history on server">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Messages -->
+                <div class="chat-messages" id="chat-messages">
+                    <div class="chat-welcome" id="chat-welcome">
+                        <i data-lucide="brain" class="welcome-icon"></i>
+                        <p class="welcome-title">Cyberlife AI</p>
+                        <span class="welcome-sub">Ollama-powered inference via MacBook Pro node</span>
+                        <span class="welcome-hint">Select a node and model above to begin</span>
+                    </div>
+                </div>
+
+                <!-- Input Bar -->
+                <div class="chat-input-bar">
+                    <input class="chat-input" id="chat-input"
+                           type="text" placeholder="Ask anything…"
+                           autocomplete="off" spellcheck="false"
+                           aria-label="Chat message"/>
+                    <button class="chat-send-btn" id="chat-send" aria-label="Send message">
+                        <i data-lucide="send"></i>
+                    </button>
+                </div>
+
+            </div>
+
+        </main>
+
+    </div>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="app.js"></script>
+
+</body>
+
+</html>
