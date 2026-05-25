@@ -1,1 +1,37 @@
-node_modules
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+
+# SQLite database file (if in data folder)
+data/cyberlife.db
+
+# Logs
+logs/
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Build artifacts (if any)
+dist/
+build/
+
+# Temporary files
+tmp/
+*.tmp
+
+# IDE / editor files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# npm package lock files (optional, but often committed)
+package-lock.json
+
+# Other generated files
+public/*.map
+.DS_Store
