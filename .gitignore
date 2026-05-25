@@ -35,3 +35,6 @@ package-lock.json
 # Other generated files
 public/*.map
 .DS_Store
+
+Posts
+public/novnc

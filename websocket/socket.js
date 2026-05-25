@@ -3,9 +3,9 @@ const WebSocket = require("ws");
 let wss;
 const listeners = {};
 
-function initWebSocket(server) {
+function initWebSocket() {
 
-    wss = new WebSocket.Server({ server });
+    wss = new WebSocket.Server({ noServer: true });
 
     wss.on("connection", (ws) => {
 
@@ -67,5 +67,6 @@ module.exports = {
     initWebSocket,
     registerListener,
     sendTo,
-    broadcast
+    broadcast,
+    getWss: () => wss
 };

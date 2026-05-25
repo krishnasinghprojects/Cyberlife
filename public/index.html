@@ -47,22 +47,22 @@
                 <button class="mode-btn active" id="btn-monitor"
                         role="tab" aria-selected="true" aria-controls="view-monitoring">
                     <i data-lucide="activity"></i>
-                    <span>Monitor</span>
                 </button>
                 <button class="mode-btn" id="btn-chat"
                         role="tab" aria-selected="false" aria-controls="view-chat">
                     <i data-lucide="message-square"></i>
-                    <span>Chat</span>
                 </button>
                 <button class="mode-btn" id="btn-ssh"
                         role="tab" aria-selected="false" aria-controls="view-ssh">
                     <i data-lucide="terminal-square"></i>
-                    <span>SSH</span>
                 </button>
                 <button class="mode-btn" id="btn-docker"
                         role="tab" aria-selected="false" aria-controls="view-docker">
                     <i data-lucide="box"></i>
-                    <span>Docker</span>
+                </button>
+                <button class="mode-btn" id="btn-vnc"
+                        role="tab" aria-selected="false" aria-controls="view-vnc">
+                    <i data-lucide="monitor-play"></i>
                 </button>
             </div>
 
@@ -221,6 +221,39 @@
                 </div>
             </div>
 
+            <!-- VNC VIEW -->
+            <div class="view vnc-view hidden" id="view-vnc" role="tabpanel">
+                <div class="chat-toolbar vnc-toolbar">
+                    <div class="toolbar-group">
+                        <label class="toolbar-label" for="vnc-device-select">Host</label>
+                        <select class="toolbar-select" id="vnc-device-select">
+                            <option value="">Select Host</option>
+                        </select>
+                        <input class="chat-input vnc-input" id="vnc-host-input" type="text" placeholder="IP Address" readonly />
+                    </div>
+                    <div class="toolbar-group">
+                        <label class="toolbar-label" for="vnc-pass">Pass</label>
+                        <input class="chat-input vnc-input" id="vnc-pass" type="password" placeholder="Password" />
+                    </div>
+                    <div class="toolbar-actions">
+                        <button class="toolbar-btn" id="btn-vnc-connect" title="Connect via VNC">
+                            <i data-lucide="monitor-play"></i>
+                            <span class="btn-label" id="vnc-connect-label">Connect</span>
+                        </button>
+                        <button class="toolbar-btn" id="btn-vnc-fullscreen" title="Full Screen" style="display:none; margin-left: 8px;">
+                            <i data-lucide="maximize"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="vnc-container" id="vnc-container">
+                    <div class="vnc-empty-state">
+                        <i data-lucide="monitor-off"></i>
+                        <p style="text-align: center;">No active VNC connection.</p>
+                    </div>
+                </div>
+            </div>
+
         </main>
 
     </div>
@@ -230,6 +263,11 @@
     <script src="https://unpkg.com/@xterm/addon-fit/lib/addon-fit.js"></script>
     <!-- Markdown parser -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- noVNC ES module -->
+    <script type="module">
+        import RFB from './novnc/core/rfb.js';
+        window.RFB = RFB;
+    </script>
     <script src="app.js"></script>
 
 </body>

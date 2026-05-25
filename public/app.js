@@ -43,6 +43,19 @@ const viewDocker   = document.getElementById("view-docker");
 const btnDockerRef = document.getElementById("btn-docker-refresh");
 const dockerGrid   = document.getElementById("docker-grid");
 
+const btnVnc       = document.getElementById("btn-vnc");
+const viewVnc      = document.getElementById("view-vnc");
+const vncDeviceSel = document.getElementById("vnc-device-select");
+const vncHostInput = document.getElementById("vnc-host-input");
+const vncPassInput = document.getElementById("vnc-pass");
+const btnVncConnect= document.getElementById("btn-vnc-connect");
+const btnVncFullscreen = document.getElementById("btn-vnc-fullscreen");
+const vncConnectLbl= document.getElementById("vnc-connect-label");
+const vncContainer = document.getElementById("vnc-container");
+
+let vncRfb = null;
+let vncConnected = false;
+
 let dockerLoop     = null;
 
 const sshDeviceSel   = document.getElementById("ssh-device-select");
@@ -158,21 +171,25 @@ function setMode(mode) {
     const isChat    = mode === "chat";
     const isSsh     = mode === "ssh";
     const isDocker  = mode === "docker";
+    const isVnc     = mode === "vnc";
 
     btnMonitor.classList.toggle("active", isMonitor);
     btnChat.classList.toggle("active", isChat);
     if (btnSsh) btnSsh.classList.toggle("active", isSsh);
     if (btnDocker) btnDocker.classList.toggle("active", isDocker);
+    if (btnVnc) btnVnc.classList.toggle("active", isVnc);
 
     btnMonitor.setAttribute("aria-selected", isMonitor);
     btnChat.setAttribute("aria-selected", isChat);
     if (btnSsh) btnSsh.setAttribute("aria-selected", isSsh);
     if (btnDocker) btnDocker.setAttribute("aria-selected", isDocker);
+    if (btnVnc) btnVnc.setAttribute("aria-selected", isVnc);
 
     viewMonitor.classList.toggle("hidden", !isMonitor);
     viewChat.classList.toggle("hidden", !isChat);
     if (viewSsh) viewSsh.classList.toggle("hidden", !isSsh);
     if (viewDocker) viewDocker.classList.toggle("hidden", !isDocker);
+    if (viewVnc) viewVnc.classList.toggle("hidden", !isVnc);
 
     if (dockerLoop) { clearInterval(dockerLoop); dockerLoop = null; }
 
@@ -186,6 +203,9 @@ function setMode(mode) {
         fetchContainers();
         dockerLoop = setInterval(fetchContainers, 3000);
     }
+    if (isVnc) {
+        refreshVncDeviceSelect();
+    }
 
     if (!isMonitor) refreshIcons();
 }
@@ -194,6 +214,7 @@ btnMonitor.addEventListener("click", () => setMode("monitoring"));
 btnChat.addEventListener("click",    () => setMode("chat"));
 if (btnSsh) btnSsh.addEventListener("click", () => setMode("ssh"));
 if (btnDocker) btnDocker.addEventListener("click", () => setMode("docker"));
+if (btnVnc) btnVnc.addEventListener("click", () => setMode("vnc"));
 if (btnDockerRef) btnDockerRef.addEventListener("click", fetchContainers);
 
 /* ─── INIT ────────────────────────────────────────────────────────────────── */
@@ -1040,6 +1061,148 @@ window.dockerAction = async function(id, action) {
         console.error("[DOCKER Action]", err);
     }
 };
+
+/* ─── VNC ─────────────────────────────────────────────────────────────────── */
+function refreshVncDeviceSelect() {
+    if (!vncDeviceSel) return;
+    const currentVal = vncDeviceSel.value;
+    vncDeviceSel.innerHTML = '<option value="">Select Host</option>';
+    
+    Object.values(allDevices).forEach(d => {
+        if (d.status === "online") {
+            const opt = document.createElement("option");
+            opt.value = d.uid;
+            opt.textContent = `${d.name} (${d.ip})`;
+            vncDeviceSel.appendChild(opt);
+        }
+    });
+    
+    if (allDevices[currentVal] && allDevices[currentVal].status === "online") {
+        vncDeviceSel.value = currentVal;
+    } else {
+        vncHostInput.value = "";
+    }
+}
+
+if (vncDeviceSel) {
+    vncDeviceSel.addEventListener("change", (e) => {
+        const uid = e.target.value;
+        if (uid && allDevices[uid]) {
+            vncHostInput.value = allDevices[uid].ip;
+        } else {
+            vncHostInput.value = "";
+        }
+    });
+}
+
+function disconnectVnc() {
+    if (vncRfb) {
+        vncRfb.disconnect();
+        vncRfb = null;
+    }
+    vncConnected = false;
+    vncContainer.innerHTML = `
+        <div class="vnc-empty-state">
+            <i data-lucide="monitor-off"></i>
+            <p>Disconnected from VNC host.</p>
+        </div>
+    `;
+    vncConnectLbl.textContent = "Connect";
+    btnVncConnect.classList.remove("danger");
+    if (btnVncFullscreen) btnVncFullscreen.style.display = "none";
+    refreshIcons();
+}
+
+if (btnVncFullscreen) {
+    btnVncFullscreen.addEventListener("click", () => {
+        if (!document.fullscreenElement) {
+            if (vncContainer.requestFullscreen) {
+                vncContainer.requestFullscreen();
+            } else if (vncContainer.webkitRequestFullscreen) {
+                vncContainer.webkitRequestFullscreen();
+            }
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    });
+}
+
+if (btnVncConnect) {
+    btnVncConnect.addEventListener("click", () => {
+        if (vncConnected) {
+            disconnectVnc();
+            return;
+        }
+
+        const ip = vncHostInput.value;
+        const pass = vncPassInput.value;
+
+        if (!ip) return;
+
+        vncContainer.innerHTML = ""; // Clear empty state
+        
+        const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+        const wsUrl = `${wsProtocol}://${window.location.host}/vnc-proxy?target=${ip}&port=5900`;
+
+        try {
+            vncRfb = new window.RFB(vncContainer, wsUrl, {
+                credentials: { password: pass }
+            });
+
+            vncRfb.addEventListener("connect", () => {
+                vncConnected = true;
+                vncConnectLbl.textContent = "Disconnect";
+                btnVncConnect.classList.add("danger");
+                if (btnVncFullscreen) btnVncFullscreen.style.display = "inline-flex";
+            });
+
+            vncRfb.addEventListener("credentialsrequired", () => {
+                disconnectVnc();
+                vncContainer.innerHTML = `
+                    <div class="vnc-empty-state">
+                        <i data-lucide="shield-alert" style="color: var(--danger)"></i>
+                        <p style="color: var(--danger)">Authentication Failed. Incorrect or missing VNC password.</p>
+                    </div>
+                `;
+                refreshIcons();
+            });
+
+            vncRfb.addEventListener("disconnect", (e) => {
+                disconnectVnc();
+                if (e.detail && !e.detail.clean) {
+                    vncContainer.innerHTML = `
+                        <div class="vnc-empty-state">
+                            <i data-lucide="wifi-off" style="color: var(--warning)"></i>
+                            <p style="color: var(--warning)">Connection closed unexpectedly. Verify host VNC is running.</p>
+                        </div>
+                    `;
+                    refreshIcons();
+                }
+            });
+
+            // Scale to fit the container
+            vncRfb.scaleViewport = true;
+            vncRfb.resizeSession = true;
+
+        } catch (e) {
+            console.error("VNC Error:", e);
+            vncContainer.innerHTML = `
+                <div class="vnc-empty-state">
+                    <p style="color: var(--danger)">Connection failed.</p>
+                </div>
+            `;
+        }
+    });
+}
+
+// Ensure resize updates noVNC
+window.addEventListener("resize", () => {
+    if (vncRfb) {
+        // noVNC handles viewport scaling automatically when scaleViewport is true
+    }
+});
 
 /* ─── BOOT ────────────────────────────────────────────────────────────────── */
 initTheme();

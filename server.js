@@ -7,7 +7,7 @@ const http    = require("http");
 const cors    = require("cors");
 const path    = require("path");
 
-const { initWebSocket, registerListener, sendTo, broadcast } = require("./websocket/socket");
+const { initWebSocket, registerListener, sendTo, broadcast, getWss } = require("./websocket/socket");
 const { loadModules }              = require("./hub/moduleLoader");
 const { buildProxyRoutes }         = require("./hub/dispatch");
 const { startWatchdog }            = require("./hub/watchdog");
@@ -55,8 +55,26 @@ app.use(express.static(path.join(__dirname, "public")));
 // ── Expose config for route handlers ─────────────────────────────────────────
 app.set("hubConfig", config);
 
-// ── WebSocket ────────────────────────────────────────────────────────────────
-initWebSocket(server);
+// ── WebSocket & Upgrade Routing ──────────────────────────────────────────────
+initWebSocket();
+const mainWss = getWss();
+
+server.on("upgrade", (request, socket, head) => {
+    if (request.url.startsWith("/vnc-proxy")) {
+        try {
+            const vncEngine = require("./modules/vnc-engine");
+            vncEngine.wss.handleUpgrade(request, socket, head, (ws) => {
+                vncEngine.wss.emit("connection", ws, request);
+            });
+        } catch (e) {
+            socket.destroy();
+        }
+    } else {
+        mainWss.handleUpgrade(request, socket, head, (ws) => {
+            mainWss.emit("connection", ws, request);
+        });
+    }
+});
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 (async () => {
