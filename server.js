@@ -14,6 +14,7 @@ const { startWatchdog }            = require("./hub/watchdog");
 
 const DEVICES = require("./stores/devices");
 const METRICS = require("./stores/metrics");
+const { initDB } = require("./stores/database");
 
 // ── Config from .env ─────────────────────────────────────────────────────────
 const config = {
@@ -42,9 +43,10 @@ app.use(cors());
 app.use(express.json());
 
 // ── Static Routes (registration, monitoring, metrics ingestion) ──────────────
-app.use(require("./routes/register"));
+app.use("/", require("./routes/register"));
 app.use(require("./routes/monitoring"));
-app.use(require("./routes/metrics"));
+app.use("/", require("./routes/metrics"));
+app.use("/api/chats", require("./routes/chats"));
 
 // ── Static Dashboard ─────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, "public")));
@@ -54,11 +56,39 @@ initWebSocket(server);
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 (async () => {
+    
+    await initDB();
+    console.log("[DATABASE] SQLite Initialized");
+
+    const { run, query } = require("./stores/database");
+
+    // 0. Load existing devices from DB to memory
+    try {
+        const rows = await query(`SELECT * FROM devices`);
+        for (const r of rows) {
+            let caps = [];
+            try { caps = JSON.parse(r.capabilities || "[]"); } catch (e) {}
+            DEVICES[r.uid] = {
+                uid: r.uid,
+                name: r.name,
+                os: r.os,
+                ip: r.ip,
+                port: r.port,
+                capabilities: caps,
+                status: "offline", // assume offline until heartbeat
+                lastHeartbeat: 0
+            };
+        }
+        console.log(`[DATABASE] Loaded ${rows.length} devices into memory`);
+    } catch (e) {
+        console.error("[DB ERROR] Failed to load devices:", e);
+    }
 
     // 1. Self-register the hub into the device store
     DEVICES[config.NODE_UID] = {
         uid:           config.NODE_UID,
         name:          config.NODE_NAME,
+        os:            "macOS",
         ip:            config.HUB_IP,
         port:          config.HUB_PORT,
         capabilities:  [],   // filled dynamically below
@@ -66,12 +96,36 @@ initWebSocket(server);
         lastHeartbeat: Date.now()
     };
 
+    try {
+        await run(`
+            INSERT INTO devices (uid, name, os, ip, port, capabilities, last_seen)
+            VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(uid) DO UPDATE SET 
+                name=excluded.name, 
+                os=excluded.os, 
+                ip=excluded.ip,
+                port=excluded.port,
+                capabilities=excluded.capabilities,
+                last_seen=CURRENT_TIMESTAMP
+        `, [config.NODE_UID, config.NODE_NAME, "macOS", config.HUB_IP, config.HUB_PORT, "[]"]);
+    } catch (e) {
+        console.error("[DB ERROR] Hub failed to register in DB:", e);
+    }
+
     // 2. Load modules
     //    system-monitor gets a special hook: reportMetrics writes directly
     //    into the METRICS store and broadcasts, instead of HTTP-pushing.
-    const reportMetrics = (metrics) => {
+    const reportMetrics = async (metrics) => {
         METRICS[config.NODE_UID] = { ...metrics, timestamp: Date.now() };
         DEVICES[config.NODE_UID].lastHeartbeat = Date.now();
+        
+        try {
+            await run(`
+                INSERT INTO metrics_log (device_uid, cpu_usage, ram_percent, disk_percent)
+                VALUES (?, ?, ?, ?)
+            `, [config.NODE_UID, metrics.cpu || 0, metrics.ram || 0, metrics.disk || 0]);
+        } catch (e) {}
+
         broadcast({
             type:     "metrics-update",
             deviceId: config.NODE_UID,
@@ -86,6 +140,10 @@ initWebSocket(server);
     // Always include "hub" capability for identification
     capabilities.unshift("hub");
     DEVICES[config.NODE_UID].capabilities = capabilities;
+    
+    try {
+        await run(`UPDATE devices SET capabilities = ? WHERE uid = ?`, [JSON.stringify(capabilities), config.NODE_UID]);
+    } catch (e) {}
 
     // 4. Mount module routes locally (for hub self-execution)
     for (const mod of modules) {

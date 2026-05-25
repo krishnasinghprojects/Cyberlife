@@ -114,54 +114,69 @@
 
             <!-- CHAT VIEW -->
             <div class="view chat-view hidden" id="view-chat" role="tabpanel">
-
-                <!-- Toolbar -->
-                <div class="chat-toolbar">
-                    <div class="toolbar-group">
-                        <label class="toolbar-label" for="ai-device-select">Node</label>
-                        <select class="toolbar-select" id="ai-device-select">
-                            <option value="">No AI devices</option>
-                        </select>
-                    </div>
-                    <div class="toolbar-group">
-                        <label class="toolbar-label" for="model-select">Model</label>
-                        <select class="toolbar-select" id="model-select">
-                            <option value="">Select node first</option>
-                        </select>
-                    </div>
-                    <div class="toolbar-actions">
-                        <span class="session-badge" id="session-badge"></span>
-                        <button class="toolbar-btn" id="btn-new-chat" title="New conversation">
+                
+                <!-- Chat Sidebar (Past Sessions) -->
+                <div class="chat-sidebar collapsed" id="chat-sidebar" aria-label="Chat History">
+                    <div class="sidebar-header">
+                        <h3>Chats</h3>
+                        <button class="toolbar-btn primary" id="btn-new-chat" aria-label="New Chat" title="New Chat">
                             <i data-lucide="plus"></i>
-                            <span class="btn-label">New</span>
                         </button>
-                        <button class="toolbar-btn toolbar-btn-danger" id="btn-clear-history" title="Clear history on server">
-                            <i data-lucide="trash-2"></i>
-                        </button>
+                    </div>
+                    <div class="sidebar-session-list" id="sidebar-sessions">
+                        <!-- Sessions load here -->
                     </div>
                 </div>
 
-                <!-- Messages -->
-                <div class="chat-messages" id="chat-messages">
-                    <div class="chat-welcome" id="chat-welcome">
-                        <i data-lucide="brain" class="welcome-icon"></i>
-                        <p class="welcome-title">Cyberlife AI</p>
-                        <span class="welcome-sub">Ollama-powered inference via MacBook Pro node</span>
-                        <span class="welcome-hint">Select a node and model above to begin</span>
+                <!-- Mobile Overlay -->
+                <div class="chat-sidebar-overlay" id="chat-sidebar-overlay"></div>
+
+                <div class="chat-main">
+                    <!-- Toolbar -->
+                    <div class="chat-toolbar">
+                        <div class="toolbar-group">
+                            <button class="toolbar-btn" id="btn-toggle-sidebar" aria-label="Toggle Sidebar" style="margin-right: 8px;">
+                                <i data-lucide="panel-left"></i>
+                            </button>
+                            <label class="toolbar-label" for="ai-device-select">Node</label>
+                            <select class="toolbar-select" id="ai-device-select">
+                                <option value="">No AI devices</option>
+                            </select>
+                        </div>
+                        <div class="toolbar-group">
+                            <label class="toolbar-label" for="model-select">Model</label>
+                            <select class="toolbar-select" id="model-select">
+                                <option value="">Select node first</option>
+                            </select>
+                        </div>
+                        <div class="toolbar-actions">
+                            <button class="toolbar-btn toolbar-btn-danger" id="btn-clear-history" title="Clear history on server">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Input Bar -->
-                <div class="chat-input-bar">
-                    <input class="chat-input" id="chat-input"
-                           type="text" placeholder="Ask anything…"
-                           autocomplete="off" spellcheck="false"
-                           aria-label="Chat message"/>
-                    <button class="chat-send-btn" id="chat-send" aria-label="Send message">
-                        <i data-lucide="send"></i>
-                    </button>
-                </div>
+                    <!-- Messages -->
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="chat-welcome" id="chat-welcome">
+                            <i data-lucide="brain" class="welcome-icon"></i>
+                            <p class="welcome-title">Cyberlife AI</p>
+                            <span class="welcome-sub">Ollama-powered inference via MacBook Pro node</span>
+                            <span class="welcome-hint">Select a node and model above to begin</span>
+                        </div>
+                    </div>
 
+                    <!-- Input Bar -->
+                    <div class="chat-input-bar">
+                        <input class="chat-input" id="chat-input"
+                               type="text" placeholder="Ask anything…"
+                               autocomplete="off" spellcheck="false"
+                               aria-label="Chat message"/>
+                        <button class="chat-send-btn" id="chat-send" aria-label="Send message">
+                            <i data-lucide="send"></i>
+                        </button>
+                    </div>
+                </div> <!-- End Chat Main -->
             </div>
 
             <!-- SSH VIEW -->
@@ -213,6 +228,8 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="https://unpkg.com/@xterm/xterm/lib/xterm.js"></script>
     <script src="https://unpkg.com/@xterm/addon-fit/lib/addon-fit.js"></script>
+    <!-- Markdown parser -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="app.js"></script>
 
 </body>

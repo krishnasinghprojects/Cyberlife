@@ -10,26 +10,7 @@ let defaultModel = "llama3.1:8b";
 let models       = ["llama3.1:8b"];
 let systemPrompt = "You are Cyberlife AI, an intelligent assistant.";
 
-// Session memory: sessionId → [{ role, content }]
-const conversationMemory = new Map();
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function getHistory(sessionId) {
-    if (!conversationMemory.has(sessionId)) {
-        conversationMemory.set(sessionId, []);
-    }
-    return conversationMemory.get(sessionId);
-}
-
-function addToHistory(sessionId, role, content) {
-    const history = getHistory(sessionId);
-    history.push({ role, content });
-    if (history.length > 20) history.splice(0, history.length - 20);
-}
-
-function clearHistory(sessionId) {
-    conversationMemory.delete(sessionId);
-}
 
 async function callOllama(model, messages) {
     const response = await axios.post(`${ollamaUrl}/api/chat`, {
@@ -63,14 +44,11 @@ router.post("/ai", async (req, res) => {
             });
         }
 
-        if (shouldClear) {
-            clearHistory(sessionId);
-            return res.json({ message: "Conversation history cleared", sessionId });
-        }
+        const history = req.body.history || [];
+        console.log(`[AI] Received history array of length: ${history.length}`);
 
-        console.log(`[AI] Session: ${sessionId}, Model: ${model}, Prompt: ${prompt.substring(0, 50)}...`);
+        console.log(`[AI] Model: ${model}, Prompt: ${prompt.substring(0, 50)}...`);
 
-        const history  = getHistory(sessionId);
         const messages = [
             { role: "system", content: customPrompt },
             ...history,
@@ -83,21 +61,17 @@ router.post("/ai", async (req, res) => {
 
         const reply = response.message?.content || response.response || "No response";
 
-        addToHistory(sessionId, "user",      prompt);
-        addToHistory(sessionId, "assistant", reply);
-
         res.json({
             response:           reply,
             model,
-            sessionId,
             responseTime:       `${elapsed}ms`,
-            conversationLength: history.length + 2,
             platform:           process.platform
         });
 
     } catch (err) {
-        console.error("[AI ERROR]", err.message);
-        res.status(500).json({ error: err.message });
+        const msg = err.response?.data?.error || err.message;
+        console.error("[AI ERROR]", msg);
+        res.status(500).json({ error: msg });
     }
 });
 
@@ -106,17 +80,7 @@ router.get("/ai/models", (_req, res) => {
     res.json({ models, default: defaultModel });
 });
 
-// Get conversation history
-router.get("/ai/history/:sessionId", (req, res) => {
-    const history = getHistory(req.params.sessionId);
-    res.json({ sessionId: req.params.sessionId, history, length: history.length });
-});
-
-// Clear conversation history
-router.delete("/ai/history/:sessionId", (req, res) => {
-    clearHistory(req.params.sessionId);
-    res.json({ message: "History cleared", sessionId: req.params.sessionId });
-});
+// End of routes
 
 // ── Module Contract ──────────────────────────────────────────────────────────
 module.exports = {
@@ -128,9 +92,7 @@ module.exports = {
     // Hub proxy routes — one entry per endpoint the hub needs to forward
     proxy: [
         { method: "post",   hubPath: "/ai/:deviceId",                    nodePath: "/ai" },
-        { method: "get",    hubPath: "/ai/:deviceId/models",             nodePath: "/ai/models" },
-        { method: "get",    hubPath: "/ai/:deviceId/history/:sessionId", nodePath: "/ai/history/:sessionId" },
-        { method: "delete", hubPath: "/ai/:deviceId/history/:sessionId", nodePath: "/ai/history/:sessionId" }
+        { method: "get",    hubPath: "/ai/:deviceId/models",             nodePath: "/ai/models" }
     ],
 
     init: async (config) => {

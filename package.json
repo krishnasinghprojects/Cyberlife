@@ -16,6 +16,7 @@
     "dockerode": "^5.0.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "sqlite3": "^6.0.1",
     "ssh2": "^1.17.0",
     "systeminformation": "^5.31.6",
     "ws": "^8.21.0"

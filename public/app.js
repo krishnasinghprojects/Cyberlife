@@ -14,7 +14,7 @@ let allMetrics  = {};
 let currentMode = "monitoring"; // "monitoring" | "chat" | "ssh"
 
 // Chat state
-let chatSessionId    = newSessionId();
+let chatSessionId    = null;
 let selectedAiDevice = "";
 let selectedModel    = "";
 let chatBusy         = false;
@@ -522,25 +522,131 @@ modelSel.addEventListener("change", () => {
 });
 
 /* ─── CHAT: SESSION MANAGEMENT ────────────────────────────────────────────── */
-function updateSessionBadge() {
-    sessionBadge.textContent = chatSessionId.slice(0, 16) + "…";
-    sessionBadge.title = chatSessionId;
+let chatHistory = [];
+const sidebarSessions = document.getElementById("sidebar-sessions");
+const chatSidebar = document.getElementById("chat-sidebar");
+const btnToggleSidebar = document.getElementById("btn-toggle-sidebar");
+const chatSidebarOverlay = document.getElementById("chat-sidebar-overlay");
+
+function toggleSidebar() {
+    chatSidebar.classList.toggle("collapsed");
+    if (chatSidebarOverlay) {
+        chatSidebarOverlay.classList.toggle("active", !chatSidebar.classList.contains("collapsed"));
+    }
+}
+
+function closeSidebarOnMobile() {
+    if (window.innerWidth <= 599 && !chatSidebar.classList.contains("collapsed")) {
+        chatSidebar.classList.add("collapsed");
+        if (chatSidebarOverlay) chatSidebarOverlay.classList.remove("active");
+    }
+}
+
+if (btnToggleSidebar) {
+    btnToggleSidebar.addEventListener("click", toggleSidebar);
+}
+if (chatSidebarOverlay) {
+    chatSidebarOverlay.addEventListener("click", toggleSidebar);
+}
+
+async function loadChatSessions() {
+    try {
+        const res = await fetch("/api/chats");
+        const sessions = await res.json();
+        
+        if (sidebarSessions) sidebarSessions.innerHTML = "";
+        
+        if (sessions.length === 0) {
+            createNewSession("New Session");
+            return;
+        }
+
+        sessions.forEach(s => {
+            const div = document.createElement("div");
+            div.className = "session-item" + (s.id === chatSessionId ? " active" : "");
+            div.textContent = s.title || "Chat Session";
+            div.onclick = () => loadSession(s.id);
+            if (sidebarSessions) sidebarSessions.appendChild(div);
+        });
+
+        // Auto-load latest session on boot if none selected
+        if (!chatSessionId && sessions.length > 0) {
+            loadSession(sessions[0].id);
+        }
+    } catch (e) {
+        console.error("Failed to load sessions", e);
+    }
+}
+
+async function createNewSession(title = "New Chat") {
+    try {
+        const res = await fetch("/api/chats", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title })
+        });
+        const data = await res.json();
+        chatSessionId = data.id;
+        chatHistory = [];
+        clearChatUI();
+        loadChatSessions();
+    } catch (e) {
+        console.error("Failed to create session", e);
+    }
+}
+
+async function loadSession(id) {
+    chatSessionId = id;
+    chatHistory = [];
+    clearChatUI();
+    closeSidebarOnMobile();
+    
+    try {
+        const res = await fetch(`/api/chats/${id}/messages`);
+        const messages = await res.json();
+        
+        const welcome = document.getElementById("chat-welcome");
+        if (welcome && messages.length > 0) welcome.remove();
+
+        messages.forEach(m => {
+            chatHistory.push({ role: m.role, content: m.content });
+            const uiRole = m.role === "assistant" ? "ai" : m.role;
+            appendMessage(uiRole, m.content);
+        });
+        
+        loadChatSessions(); // Update active state
+    } catch (e) {
+        console.error("Failed to load messages", e);
+    }
+}
+
+async function saveMessage(role, content) {
+    chatHistory.push({ role, content });
+    if (!chatSessionId) return;
+    try {
+        await fetch(`/api/chats/${chatSessionId}/messages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ role, content })
+        });
+        loadChatSessions(); // Bump session to top
+    } catch (e) {
+        console.error("Failed to save message", e);
+    }
 }
 
 btnNewChat.addEventListener("click", () => {
-    chatSessionId = newSessionId();
-    updateSessionBadge();
-    clearChatUI();
+    createNewSession("New Session");
 });
 
 btnClear.addEventListener("click", async () => {
-    if (!selectedAiDevice || !chatSessionId) return;
-
+    if (!chatSessionId) return;
     try {
-        await fetch(`/ai/${encodeURIComponent(selectedAiDevice)}/history/${chatSessionId}`, {
-            method: "DELETE"
-        });
+        await fetch(`/api/chats/${chatSessionId}`, { method: "DELETE" });
+        chatSessionId = null;
+        chatHistory = [];
         clearChatUI();
+        loadChatSessions();
     } catch (err) {
         console.error("[CLEAR HISTORY]", err.message);
     }
@@ -596,22 +702,21 @@ async function sendMessage() {
             body:    JSON.stringify({
                 prompt,
                 model:     selectedModel,
-                sessionId: chatSessionId
+                history:   chatHistory
             })
         });
 
         const data = await res.json();
-
         removeThinking(thinkingId);
+
+        await saveMessage("user", prompt); // Save user prompt to DB
 
         if (data.error) {
             appendMessage("ai", `Error: ${data.error}`, null, true);
         } else {
-            appendMessage(
-                "ai",
-                data.response || "No response",
-                data.responseTime
-            );
+            const reply = data.response || "No response";
+            await saveMessage("assistant", reply); // Save AI reply to DB
+            appendMessage("ai", reply, data.responseTime);
         }
 
     } catch (err) {
@@ -641,9 +746,11 @@ function appendMessage(role, text, meta = null, isError = false) {
     const metaHtml  = meta ? `<div class="msg-meta">${esc(meta)}</div>` : "";
     const bubbleCls = isError ? "msg-bubble msg-error" : "msg-bubble";
 
+    const contentHtml = (role === "ai" && window.marked) ? marked.parse(text) : esc(text);
+
     wrapper.innerHTML = `
         <div class="msg-role">${roleLabel}</div>
-        <div class="${bubbleCls}">${esc(text)}</div>
+        <div class="${bubbleCls} markdown-body">${contentHtml}</div>
         ${metaHtml}`;
 
     chatMessages.appendChild(wrapper);
@@ -923,7 +1030,7 @@ window.dockerAction = async function(id, action) {
 
 /* ─── BOOT ────────────────────────────────────────────────────────────────── */
 initTheme();
-updateSessionBadge();
+loadChatSessions(); // Load past chats on boot
 
 // Lucide may load after this script; wait for it
 if (document.readyState === "loading") {
