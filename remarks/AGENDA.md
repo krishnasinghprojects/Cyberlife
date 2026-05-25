@@ -33,16 +33,16 @@ The hub runs on a Mac Mini (10.120.0.250) and provides a unified WebSocket/REST 
 - [x] Implement Ollama-based AI endpoint on the MacBook Pro node with session memory.
 - [x] Build Chat Interface in the Dashboard with Mode Toggle (Monitor vs. Chat).
 - [x] Enable Hub Self-Registration and Self-Metrics monitoring.
-- [ ] Implement Agentic Workflow to execute commands and autonomously check data (Query resolution layer converting user requests into executable actions).
+- [x] Implement Agentic Workflow to execute commands and autonomously check data (Query resolution layer converting user requests into executable actions via native tool-calling).
 
 ### v0.3: Persistence & State Management
 *Replace in-memory stores with a robust database for persistent state and logging.*
 
-- [ ] Implement Persistent Database (e.g., SQLite, PostgreSQL, or MongoDB) as the Single Source of Truth (SSOT).
+- [x] Implement Persistent Database (SQLite) as the Single Source of Truth (SSOT).
 - [ ] Migrate Device Registry from in-memory to the persistent database.
 - [ ] Implement System Logs and Event History storage.
 - [ ] Store Task Management states.
-- [ ] Persist Conversation/Chat History across hub restarts.
+- [x] Persist Conversation/Chat History across hub restarts.
 - [ ] Add Authentication and Connection Management (Central Hub IP + Password validation).
 
 ### v0.4: IoT Edge & Microcontroller Integration
@@ -87,7 +87,7 @@ The hub runs on a Mac Mini (10.120.0.250) and provides a unified WebSocket/REST 
 ### Central Hub (Mac Mini)
 - [x] Connection Management
 - [x] Request Processor
-- [ ] SSOT Database
+- [x] SSOT Database (SQLite)
 - [ ] Microcontroller Management
 - [x] Live Streaming (WebSocket scaffolding ready, video proxy pending)
 

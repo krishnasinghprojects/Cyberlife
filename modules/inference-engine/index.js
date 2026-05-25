@@ -12,12 +12,12 @@ let systemPrompt = "You are Cyberlife AI, an intelligent assistant.";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-async function callOllama(model, messages) {
-    const response = await axios.post(`${ollamaUrl}/api/chat`, {
-        model,
-        messages,
-        stream: false
-    });
+async function callOllama(model, messages, tools = null) {
+    const payload = { model, messages, stream: false };
+    if (tools && tools.length > 0) {
+        payload.tools = tools;
+    }
+    const response = await axios.post(`${ollamaUrl}/api/chat`, payload);
     return response.data;
 }
 
@@ -75,6 +75,33 @@ router.post("/ai", async (req, res) => {
     }
 });
 
+// ── NEW: Raw Chat Endpoint for Agentic Loop ──────────────────────────────────
+// Receives the raw Ollama payload (including tools) and returns the FULL response
+// so the Hub orchestrator can parse tool_calls natively.
+router.post("/ai-chat", async (req, res) => {
+    try {
+        const { model, messages, tools } = req.body;
+        
+        const payload = { model: model || defaultModel, messages, stream: false };
+        if (tools && tools.length > 0) payload.tools = tools;
+
+        const startTime = Date.now();
+        const response = await axios.post(`${ollamaUrl}/api/chat`, payload);
+        const elapsed = Date.now() - startTime;
+
+        // Return the raw response object which includes message.tool_calls
+        res.json({
+            ...response.data,
+            responseTime: `${elapsed}ms`,
+            platform: process.platform
+        });
+    } catch (err) {
+        const msg = err.response?.data?.error || err.message;
+        console.error("[AI-CHAT ERROR]", msg);
+        res.status(500).json({ error: msg });
+    }
+});
+
 // Available models
 router.get("/ai/models", (_req, res) => {
     res.json({ models, default: defaultModel });
@@ -89,9 +116,13 @@ module.exports = {
 
     routes: router,
 
+    // Exported for use by the agentic loop
+    callOllama,
+
     // Hub proxy routes — one entry per endpoint the hub needs to forward
     proxy: [
         { method: "post",   hubPath: "/ai/:deviceId",                    nodePath: "/ai" },
+        { method: "post",   hubPath: "/ai-chat/:deviceId",               nodePath: "/ai-chat" },
         { method: "get",    hubPath: "/ai/:deviceId/models",             nodePath: "/ai/models" }
     ],
 

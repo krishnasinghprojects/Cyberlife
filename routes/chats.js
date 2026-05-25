@@ -30,7 +30,7 @@ router.post("/", async (req, res) => {
 router.get("/:sessionId/messages", async (req, res) => {
     try {
         const { sessionId } = req.params;
-        const messages = await query(`SELECT role, content, created_at FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC`, [sessionId]);
+        const messages = await query(`SELECT role, content, tool_calls, created_at FROM chat_messages WHERE session_id = ? AND message_type = 'text' ORDER BY created_at ASC`, [sessionId]);
         res.json(messages);
     } catch (e) {
         res.status(500).json({ error: e.message });

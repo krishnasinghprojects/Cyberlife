@@ -47,9 +47,13 @@ app.use("/", require("./routes/register"));
 app.use(require("./routes/monitoring"));
 app.use("/", require("./routes/metrics"));
 app.use("/api/chats", require("./routes/chats"));
+app.use("/api/chats", require("./routes/agent"));
 
 // ── Static Dashboard ─────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, "public")));
+
+// ── Expose config for route handlers ─────────────────────────────────────────
+app.set("hubConfig", config);
 
 // ── WebSocket ────────────────────────────────────────────────────────────────
 initWebSocket(server);

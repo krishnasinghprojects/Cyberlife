@@ -54,9 +54,42 @@ function initDB() {
                 disk_percent REAL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (device_uid) REFERENCES devices(uid) ON DELETE CASCADE
-            )`, (err) => {
-                if (err) reject(err);
-                else {
+            )`);
+
+            // ── Migrations ───────────────────────────────────────────
+            // Add agentic workflow columns to chat_messages
+            // (safe: checks if columns exist before ALTER TABLE)
+            db.all(`PRAGMA table_info(chat_messages)`, [], (err, columns) => {
+                if (err) {
+                    console.error("[DB MIGRATION] Failed to read chat_messages schema:", err);
+                    startMetricsPruning();
+                    resolve();
+                    return;
+                }
+
+                const names = columns.map(c => c.name);
+                let pending = 0;
+
+                const done = () => {
+                    pending--;
+                    if (pending <= 0) {
+                        console.log("[DB MIGRATION] Schema up to date");
+                        startMetricsPruning();
+                        resolve();
+                    }
+                };
+
+                if (!names.includes('tool_calls')) {
+                    pending++;
+                    db.run(`ALTER TABLE chat_messages ADD COLUMN tool_calls TEXT`, done);
+                }
+
+                if (!names.includes('message_type')) {
+                    pending++;
+                    db.run(`ALTER TABLE chat_messages ADD COLUMN message_type TEXT DEFAULT 'text'`, done);
+                }
+
+                if (pending === 0) {
                     startMetricsPruning();
                     resolve();
                 }

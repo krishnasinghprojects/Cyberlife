@@ -1175,3 +1175,36 @@ body {
 .xterm .xterm-screen {
     padding: 5px;
 }
+
+/* ─── AI Tool Badges ──────────────────────────────────────────────────────── */
+.msg-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+    margin-left: 2px;
+}
+
+.tool-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.tool-badge svg {
+    width: 10px;
+    height: 10px;
+    stroke: var(--primary);
+}
+
+.tool-duration {
+    opacity: 0.6;
+    margin-left: 3px;
+}

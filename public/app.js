@@ -611,7 +611,11 @@ async function loadSession(id) {
         messages.forEach(m => {
             chatHistory.push({ role: m.role, content: m.content });
             const uiRole = m.role === "assistant" ? "ai" : m.role;
-            appendMessage(uiRole, m.content);
+            let toolTrace = null;
+            if (m.tool_calls) {
+                try { toolTrace = JSON.parse(m.tool_calls); } catch (e) {}
+            }
+            appendMessage(uiRole, m.content, null, false, toolTrace);
         });
         
         loadChatSessions(); // Update active state
@@ -668,16 +672,8 @@ async function sendMessage() {
     const prompt = chatInput.value.trim();
     if (!prompt || chatBusy) return;
 
-    selectedModel = modelSel.value;
-
-    if (!selectedAiDevice) {
-        alert("No AI node selected.");
-        return;
-    }
-
-    if (!selectedModel) {
-        alert("No model selected.");
-        return;
+    if (!chatSessionId) {
+        await createNewSession("New Session");
     }
 
     // Remove welcome screen on first message
@@ -696,27 +692,21 @@ async function sendMessage() {
     appendThinking(thinkingId);
 
     try {
-        const res = await fetch(`/ai/${encodeURIComponent(selectedAiDevice)}`, {
+        const res = await fetch(`/api/chats/${chatSessionId}/agent`, {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
-            body:    JSON.stringify({
-                prompt,
-                model:     selectedModel,
-                history:   chatHistory
-            })
+            body:    JSON.stringify({ prompt })
         });
 
         const data = await res.json();
         removeThinking(thinkingId);
-
-        await saveMessage("user", prompt); // Save user prompt to DB
+        loadChatSessions(); // Update sidebar (e.g. for auto-generated title)
 
         if (data.error) {
             appendMessage("ai", `Error: ${data.error}`, null, true);
         } else {
             const reply = data.response || "No response";
-            await saveMessage("assistant", reply); // Save AI reply to DB
-            appendMessage("ai", reply, data.responseTime);
+            appendMessage("ai", reply, data.responseTime, false, data.toolTrace);
         }
 
     } catch (err) {
@@ -738,22 +728,45 @@ chatInput.addEventListener("keydown", e => {
 });
 
 /* ─── CHAT: APPEND MESSAGES ───────────────────────────────────────────────── */
-function appendMessage(role, text, meta = null, isError = false) {
+function appendMessage(role, text, meta = null, isError = false, toolTrace = null) {
     const wrapper = document.createElement("div");
     wrapper.className = `msg msg-${role}`;
 
     const roleLabel = role === "user" ? "You" : "Cyberlife AI";
-    const metaHtml  = meta ? `<div class="msg-meta">${esc(meta)}</div>` : "";
     const bubbleCls = isError ? "msg-bubble msg-error" : "msg-bubble";
 
     const contentHtml = (role === "ai" && window.marked) ? marked.parse(text) : esc(text);
 
+    let toolsHtml = "";
+    if (toolTrace && toolTrace.length > 0) {
+        toolsHtml = `<div class="msg-tools">`;
+        toolTrace.forEach(t => {
+            const duration = t.duration || "";
+            const formattedTool = (t.tool || "")
+                .split('_')
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(' ');
+                
+            toolsHtml += `
+                <div class="tool-badge" title="Called tool: ${escAttr(t.tool)}">
+                    <i data-lucide="wrench"></i>
+                    <span>${esc(formattedTool)}</span>
+                    ${duration ? `<span class="tool-duration">${esc(duration)}</span>` : ""}
+                </div>`;
+        });
+        toolsHtml += `</div>`;
+    }
+
+    const metaHtml = meta ? `<div class="msg-meta">${esc(meta)}</div>` : "";
+
     wrapper.innerHTML = `
         <div class="msg-role">${roleLabel}</div>
+        ${toolsHtml}
         <div class="${bubbleCls} markdown-body">${contentHtml}</div>
         ${metaHtml}`;
 
     chatMessages.appendChild(wrapper);
+    refreshIcons();
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 

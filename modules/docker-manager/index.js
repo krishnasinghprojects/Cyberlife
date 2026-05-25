@@ -112,7 +112,14 @@ module.exports = {
 
     routes: router,
 
-    init: async (config, { registerListener, sendTo }) => {
+    // Hub proxy routes — allows the dispatch layer to forward Docker
+    // requests to any device that has the docker capability.
+    proxy: [
+        { method: "get",  hubPath: "/docker/:deviceId/containers",                nodePath: "/containers" },
+        { method: "post", hubPath: "/docker/:deviceId/containers/:id/:action",    nodePath: "/containers/:id/:action" }
+    ],
+
+    init: async (config, { registerListener, sendTo } = {}) => {
         console.log(`[MODULE] docker-manager initialized`);
     },
 
