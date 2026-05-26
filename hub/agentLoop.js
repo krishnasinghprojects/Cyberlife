@@ -25,17 +25,17 @@ const MAX_RESULT_LENGTH = 4000;   // Truncate large tool results to protect cont
 const OLLAMA_TIMEOUT    = 120_000; // 2 min per LLM call
 
 /**
- * runAgentLoop(prompt, history, config)
+ * runAgentLoop({ prompt, model: reqModel, deviceId }, history, config)
  *
- * @param {string}   prompt   — The user's message
+ * @param {object}   options  — { prompt, model, deviceId }
  * @param {object[]} history  — Previous chat messages [{ role, content }, ...]
  * @param {object}   config   — Hub config (OLLAMA_URL, OLLAMA_DEFAULT_MODEL, HUB_PORT, etc.)
  * @returns {Promise<object>} — { response, toolTrace, iterations, model, responseTime }
  */
-async function runAgentLoop(prompt, history, config) {
+async function runAgentLoop({ prompt, model: reqModel, deviceId }, history, config) {
 
     const ollamaUrl = config.OLLAMA_URL           || "http://127.0.0.1:11434";
-    const model     = config.OLLAMA_DEFAULT_MODEL  || "llama3.1:8b";
+    const model     = reqModel || config.OLLAMA_DEFAULT_MODEL  || "llama3.1:8b";
     const hubPort   = config.HUB_PORT              || 8000;
 
     // ── Build dynamic context ────────────────────────────────────────
@@ -57,11 +57,16 @@ async function runAgentLoop(prompt, history, config) {
     const DEVICES = require("../stores/devices");
     const allDevices = Object.values(DEVICES);
     
-    // Find any online device that supports ai-inference
-    const inferenceNode = allDevices.find(d => 
-        d.status === "online" && 
-        d.capabilities?.includes("ai-inference")
-    );
+    // Use selected device if provided, otherwise find any online device that supports ai-inference
+    let inferenceNode;
+    if (deviceId) {
+        inferenceNode = allDevices.find(d => d.uid === deviceId);
+    } else {
+        inferenceNode = allDevices.find(d => 
+            d.status === "online" && 
+            d.capabilities?.includes("ai-inference")
+        );
+    }
 
     let targetUrl;
     if (inferenceNode) {

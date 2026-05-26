@@ -72,6 +72,8 @@ let sshConnected = false;
 
 const aiDeviceSel  = document.getElementById("ai-device-select");
 const modelSel     = document.getElementById("model-select");
+const dockerDeviceSel = document.getElementById("docker-device-select");
+let selectedDockerDevice = "";
 const sessionBadge = document.getElementById("session-badge");
 const chatMessages = document.getElementById("chat-messages");
 const chatInput    = document.getElementById("chat-input");
@@ -105,6 +107,7 @@ ws.onmessage = ({ data }) => {
         syncCards();
         updateHeaderStats();
         refreshAiDeviceSelect();
+        if (typeof refreshDockerDeviceSelect === 'function') refreshDockerDeviceSelect();
 
     } else if (msg.type === "metrics-update") {
         allMetrics[msg.deviceId] = msg.metrics;
@@ -200,6 +203,7 @@ function setMode(mode) {
         setTimeout(() => { if (xtermFit) xtermFit.fit(); }, 50);
     }
     if (isDocker) {
+        if (typeof refreshDockerDeviceSelect === 'function') refreshDockerDeviceSelect();
         fetchContainers();
         dockerLoop = setInterval(fetchContainers, 3000);
     }
@@ -233,6 +237,7 @@ async function init() {
         updateHeaderStats();
         refreshAiDeviceSelect();
         refreshSshDeviceSelect();
+        if (typeof refreshDockerDeviceSelect === 'function') refreshDockerDeviceSelect();
 
     } catch (err) {
         console.error("[INIT]", err.message);
@@ -716,7 +721,7 @@ async function sendMessage() {
         const res = await fetch(`/api/chats/${chatSessionId}/agent`, {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
-            body:    JSON.stringify({ prompt })
+            body:    JSON.stringify({ prompt, model: selectedModel, deviceId: selectedAiDevice })
         });
 
         const data = await res.json();
@@ -977,10 +982,43 @@ if (btnSshConnect) {
 }
 
 /* ─── DOCKER MANAGEMENT ───────────────────────────────────────────────────── */
+function refreshDockerDeviceSelect() {
+    if (!dockerDeviceSel) return;
+    const prev = dockerDeviceSel.value;
+    dockerDeviceSel.innerHTML = '<option value="">Select Node</option>';
+    
+    Object.values(allDevices).forEach(d => {
+        if (d.status === "online" && d.capabilities?.includes("docker")) {
+            const opt = document.createElement("option");
+            opt.value = d.uid;
+            opt.textContent = d.name || d.uid;
+            dockerDeviceSel.appendChild(opt);
+        }
+    });
+
+    if (prev && allDevices[prev] && allDevices[prev].status === "online") {
+        dockerDeviceSel.value = prev;
+    }
+    selectedDockerDevice = dockerDeviceSel.value;
+}
+
+if (dockerDeviceSel) {
+    dockerDeviceSel.addEventListener("change", () => {
+        selectedDockerDevice = dockerDeviceSel.value;
+        fetchContainers();
+    });
+}
+
 async function fetchContainers() {
     if (currentMode !== "docker") return;
+    if (!selectedDockerDevice) {
+        if (dockerGrid) {
+            dockerGrid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-dim);">Please select a Docker node.</div>`;
+        }
+        return;
+    }
     try {
-        const res = await fetch("/containers");
+        const res = await fetch(`/docker/${encodeURIComponent(selectedDockerDevice)}/containers`);
         if (!res.ok) throw new Error("Fetch failed");
         const containers = await res.json();
         renderContainers(containers);
@@ -1055,7 +1093,8 @@ function renderContainers(containers) {
 
 window.dockerAction = async function(id, action) {
     try {
-        await fetch(`/containers/${id}/${action}`, { method: 'POST' });
+        if (!selectedDockerDevice) return;
+        await fetch(`/docker/${encodeURIComponent(selectedDockerDevice)}/containers/${id}/${action}`, { method: 'POST' });
         fetchContainers(); // fast refresh
     } catch (err) {
         console.error("[DOCKER Action]", err);

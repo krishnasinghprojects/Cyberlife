@@ -211,6 +211,12 @@
             <!-- DOCKER VIEW -->
             <div class="view docker-view hidden" id="view-docker" role="tabpanel">
                 <div class="docker-toolbar">
+                    <div class="toolbar-group">
+                        <label class="toolbar-label" for="docker-device-select">Node</label>
+                        <select class="toolbar-select" id="docker-device-select">
+                            <option value="">No Docker devices</option>
+                        </select>
+                    </div>
                     <button class="toolbar-btn" id="btn-docker-refresh" title="Refresh Containers">
                         <i data-lucide="refresh-cw"></i>
                         <span class="btn-label">Refresh</span>

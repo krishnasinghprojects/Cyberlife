@@ -24,7 +24,7 @@ const router = express.Router();
 router.post("/:sessionId/agent", async (req, res) => {
 
     const { sessionId } = req.params;
-    const { prompt }    = req.body;
+    const { prompt, model, deviceId } = req.body;
 
     if (!prompt || typeof prompt !== "string") {
         return res.status(400).json({ error: "prompt field required (string)" });
@@ -82,7 +82,7 @@ router.post("/:sessionId/agent", async (req, res) => {
         // ── 5. Run the agentic loop ──────────────────────────────────
         console.log(`[AGENT] Session ${sessionId.substring(0, 8)}… | Prompt: "${prompt.substring(0, 60)}…"`);
 
-        const result = await runAgentLoop(prompt, history, config);
+        const result = await runAgentLoop({ prompt, model, deviceId }, history, config);
 
         // ── 6. Save assistant response to DB ─────────────────────────
         const assistantMsgId = crypto.randomUUID();
