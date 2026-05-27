@@ -268,6 +268,10 @@
                         <label>Default Model</label>
                         <input type="text" id="ai-model" value="llama3.2">
                     </div>
+                    <div class="form-group">
+                        <label>Available Models (comma separated)</label>
+                        <input type="text" id="ai-models" value="llama3.2,llama3.1:8b">
+                    </div>
                 </div>
             </div>
 
@@ -302,17 +306,23 @@
 
     <!-- Fullscreen Loading Overlay -->
     <div class="success-overlay" id="success-overlay">
-        <div class="spinner"></div>
-        <h2 style="margin: 0;">Rebooting Cyberlife...</h2>
-        <p style="color: #8b8d98; margin-top: 10px;">Please wait while the ecosystem comes online.</p>
+        <div class="spinner" id="spinner"></div>
+        <h2 style="margin: 0;" id="overlay-title">Rebooting Cyberlife...</h2>
+        <p style="color: #8b8d98; margin-top: 10px;" id="overlay-subtitle">Please wait while the ecosystem comes online.</p>
     </div>
 
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         lucide.createIcons();
 
-        // Auto-fill Hub IP based on the browser's current URL
-        document.getElementById("hub-ip").value = window.location.origin;
+        // Auto-fill true LAN Hub IP via API
+        fetch("/api/setup/ip")
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById("hub-ip").value = "http://" + data.ip + ":8000";
+            }).catch(() => {
+                document.getElementById("hub-ip").value = window.location.origin;
+            });
 
         function toggleAgentFields() {
             const type = document.getElementById("node-type").value;
@@ -329,6 +339,7 @@
             // Show full screen overlay
             document.getElementById("success-overlay").style.display = "flex";
 
+            const type = document.getElementById("node-type").value;
             const modules = ["command-executor", "system-monitor"];
             if (document.getElementById("mod-ssh").checked) modules.push("ssh-engine");
             if (document.getElementById("mod-docker").checked) modules.push("docker-manager");
@@ -336,14 +347,15 @@
             if (document.getElementById("mod-cf").checked) modules.push("cloudflare-tunnel");
 
             const payload = {
-                type: document.getElementById("node-type").value,
+                type: type,
                 uid: document.getElementById("node-uid").value,
                 name: document.getElementById("node-name").value,
                 hubUrl: document.getElementById("hub-ip").value,
                 modules: modules.join(", "),
                 ai: document.getElementById("mod-ai").checked ? {
                     url: document.getElementById("ai-url").value,
-                    model: document.getElementById("ai-model").value
+                    model: document.getElementById("ai-model").value,
+                    models: document.getElementById("ai-models").value
                 } : null,
                 cf: document.getElementById("mod-cf").checked ? {
                     token: document.getElementById("cf-token").value,
@@ -361,7 +373,16 @@
                 });
                 
                 if (res.ok) {
-                    // Start polling the root endpoint to see when the server is back
+                    if (type === "agent") {
+                        // Agent doesn't serve a web dashboard. Tell the user it's done.
+                        document.getElementById("spinner").style.display = "none";
+                        document.getElementById("overlay-title").textContent = "Agent Initialized!";
+                        document.getElementById("overlay-title").style.color = "#28a745"; // Green success color
+                        document.getElementById("overlay-subtitle").innerHTML = "The backend has safely rebooted as a remote agent.<br>You can now safely close this window.";
+                        return;
+                    }
+                    
+                    // Hub mode: Start polling the root endpoint to see when the server is back
                     const checkServer = setInterval(async () => {
                         try {
                             const ping = await fetch("/");

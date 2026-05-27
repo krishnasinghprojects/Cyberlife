@@ -6,6 +6,23 @@ const router = express.Router();
 
 const { spawn } = require("child_process");
 
+const os = require("os");
+
+function getLocalIP() {
+    for (const iface of Object.values(os.networkInterfaces())) {
+        for (const addr of iface) {
+            if (addr.family === "IPv4" && !addr.internal) {
+                return addr.address;
+            }
+        }
+    }
+    return "127.0.0.1";
+}
+
+router.get("/setup/ip", (req, res) => {
+    res.json({ ip: getLocalIP() });
+});
+
 router.post("/setup/complete", (req, res) => {
     const { type, uid, name, hubUrl, modules, ai, cf } = req.body;
 
@@ -25,7 +42,7 @@ METRICS_INTERVAL_MS=5000
 # Optional configurations
 OLLAMA_URL=${ai ? ai.url : ""}
 OLLAMA_DEFAULT_MODEL=${ai ? ai.model : ""}
-OLLAMA_MODELS=${ai ? ai.model : ""}
+OLLAMA_MODELS=${ai ? ai.models : ""}
 CLOUDFLARE_API_TOKEN=${cf ? cf.token : ""}
 CLOUDFLARE_ZONE_ID=${cf ? cf.zone : ""}
 CLOUDFLARE_ACCOUNT_ID=${cf ? cf.account : ""}
@@ -44,7 +61,7 @@ METRICS_INTERVAL_MS=5000
 # Optional configurations
 OLLAMA_URL=${ai ? ai.url : ""}
 OLLAMA_DEFAULT_MODEL=${ai ? ai.model : ""}
-OLLAMA_MODELS=${ai ? ai.model : ""}
+OLLAMA_MODELS=${ai ? ai.models : ""}
 CLOUDFLARE_API_TOKEN=${cf ? cf.token : ""}
 CLOUDFLARE_ZONE_ID=${cf ? cf.zone : ""}
 CLOUDFLARE_ACCOUNT_ID=${cf ? cf.account : ""}
@@ -59,10 +76,15 @@ CLOUDFLARE_DOMAIN=${cf ? cf.domain : ""}
         // Seamlessly reboot the server so the user doesn't have to restart manually
         setTimeout(() => {
             console.log("\x1b[32m[SETUP] Configuration generated. Rebooting ecosystem natively...\x1b[0m");
+            
+            // Do NOT pass process.env here. Let dotenv load the fresh .env natively!
+            // We only pass PATH so the node executable resolves correctly.
+            const cleanEnv = { PATH: process.env.PATH };
+            
             const child = spawn(process.argv[0], process.argv.slice(1), {
                 detached: true,
                 stdio: "inherit",
-                env: process.env
+                env: cleanEnv
             });
             child.unref();
             process.exit(0);

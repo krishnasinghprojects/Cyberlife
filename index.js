@@ -26,15 +26,10 @@ if (!process.env.NODE_UID) {
     setupApp.use(cors());
     setupApp.use(express.json());
     
-    // Inject real IP into setup.html
+    // Serve setup.html
     setupApp.get("/", (req, res) => {
         const htmlPath = path.join(__dirname, "public", "setup.html");
-        let html = fs.readFileSync(htmlPath, "utf8");
-        const realIp = getLocalIP();
-        // Replace the auto-detected fallback in the script with the real IP
-        html = html.replace('document.getElementById("hub-ip").value = window.location.origin;', 
-                            `document.getElementById("hub-ip").value = "http://${realIp}:8000";`);
-        res.send(html);
+        res.sendFile(htmlPath);
     });
     
     setupApp.use(express.static(path.join(__dirname, "public")));
