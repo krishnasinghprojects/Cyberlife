@@ -61,7 +61,3 @@ Cyberlife is built entirely on pure Javascript and Node.js to ensure extreme por
 - **Backend:** Express & `ws` (Lightweight asynchronous networking).
 - **Database:** SQLite (Embedded, high-speed configuration storage).
 - **Routing:** Modules are hot-loaded and dynamically proxied based on the `ENABLED_MODULES` array.
-
-## Roadmap & Progress
-
-Check the `/Posts` directory for chronological developer logs and architecture updates on how the platform has evolved from a simple monitoring script into a multi-nodal IoT ecosystem.
