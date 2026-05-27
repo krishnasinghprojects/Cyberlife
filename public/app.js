@@ -92,56 +92,77 @@ const chatSendBtn  = document.getElementById("chat-send");
 const btnNewChat   = document.getElementById("btn-new-chat");
 const btnClear     = document.getElementById("btn-clear-history");
 
-/* ─── WEBSOCKET ───────────────────────────────────────────────────────────── */
-const ws = new WebSocket(`ws://${window.location.host}`);
+let ws = null;
+let wsReconnectTimer = null;
 
-ws.onopen = () => {
-    connDot.className    = "conn-dot online";
-    connLabel.textContent = "Hub Connected";
-};
-
-ws.onclose = () => {
-    connDot.className    = "conn-dot offline";
-    connLabel.textContent = "Hub Disconnected";
-};
-
-ws.onerror = () => {
-    connDot.className    = "conn-dot offline";
-    connLabel.textContent = "Connection Error";
-};
-
-ws.onmessage = ({ data }) => {
-    const msg = JSON.parse(data);
-
-    if (msg.type === "device-update") {
-        allDevices = msg.devices;
-        syncCards();
-        updateHeaderStats();
-        refreshAiDeviceSelect();
-        if (typeof refreshDockerDeviceSelect === 'function') refreshDockerDeviceSelect();
-        if (typeof refreshExposeDeviceSelect === 'function') refreshExposeDeviceSelect();
-
-    } else if (msg.type === "metrics-update") {
-        allMetrics[msg.deviceId] = msg.metrics;
-        applyMetrics(msg.deviceId, msg.metrics);
-    } else if (msg.type === "ssh-ready") {
-        sshConnected = true;
-        sshConnectLbl.textContent = "Disconnect";
-        if (xtermFit) {
-            xtermFit.fit();
-            ws.send(JSON.stringify({ type: "ssh-resize", payload: { cols: xterm.cols, rows: xterm.rows } }));
-        }
-        xterm.write("\r\n\x1b[32m[Connected]\x1b[0m\r\n");
-    } else if (msg.type === "ssh-data") {
-        if (xterm) xterm.write(atob(msg.data));
-    } else if (msg.type === "ssh-error") {
-        if (xterm) xterm.write(`\r\n\x1b[31m[SSH Error: ${msg.error}]\x1b[0m\r\n`);
-        resetSshState();
-    } else if (msg.type === "ssh-close") {
-        if (xterm) xterm.write("\r\n\x1b[33m[Connection closed]\x1b[0m\r\n");
-        resetSshState();
+function connectWebSocket() {
+    if (ws) {
+        ws.onclose = null;
+        ws.onerror = null;
+        ws.onmessage = null;
+        ws.close();
     }
-};
+
+    ws = new WebSocket(`ws://${window.location.host}`);
+
+    ws.onopen = () => {
+        connDot.className    = "conn-dot online";
+        connLabel.textContent = "Hub Connected";
+        if (wsReconnectTimer) {
+            clearTimeout(wsReconnectTimer);
+            wsReconnectTimer = null;
+        }
+    };
+
+    ws.onclose = () => {
+        connDot.className    = "conn-dot offline";
+        connLabel.textContent = "Hub Disconnected";
+        if (!wsReconnectTimer) {
+            wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+        }
+    };
+
+    ws.onerror = () => {
+        connDot.className    = "conn-dot offline";
+        connLabel.textContent = "Connection Error";
+        // Let onclose handle the reconnect
+    };
+
+    ws.onmessage = ({ data }) => {
+        const msg = JSON.parse(data);
+
+        if (msg.type === "device-update") {
+            allDevices = msg.devices;
+            syncCards();
+            updateHeaderStats();
+            refreshAiDeviceSelect();
+            if (typeof refreshDockerDeviceSelect === 'function') refreshDockerDeviceSelect();
+            if (typeof refreshExposeDeviceSelect === 'function') refreshExposeDeviceSelect();
+
+        } else if (msg.type === "metrics-update") {
+            allMetrics[msg.deviceId] = msg.metrics;
+            applyMetrics(msg.deviceId, msg.metrics);
+        } else if (msg.type === "ssh-ready") {
+            sshConnected = true;
+            sshConnectLbl.textContent = "Disconnect";
+            if (xtermFit) {
+                xtermFit.fit();
+                ws.send(JSON.stringify({ type: "ssh-resize", payload: { cols: xterm.cols, rows: xterm.rows } }));
+            }
+            xterm.write("\r\n\x1b[32m[Connected]\x1b[0m\r\n");
+        } else if (msg.type === "ssh-data") {
+            if (xterm) xterm.write(atob(msg.data));
+        } else if (msg.type === "ssh-error") {
+            if (xterm) xterm.write(`\r\n\x1b[31m[SSH Error: ${msg.error}]\x1b[0m\r\n`);
+            resetSshState();
+        } else if (msg.type === "ssh-close") {
+            if (xterm) xterm.write("\r\n\x1b[33m[Connection closed]\x1b[0m\r\n");
+            resetSshState();
+        }
+    };
+}
+
+connectWebSocket();
 
 /* ─── THEME SWITCHING ─────────────────────────────────────────────────────── */
 function toggleTheme() {

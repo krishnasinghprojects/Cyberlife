@@ -1,0 +1,159 @@
+openapi: 3.0.0
+info:
+  title: Cyberlife Hub API
+  description: REST API documentation for the Cyberlife Central Hub. This API controls nodes, AI workflows, and infrastructure services.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Local Hub Server
+
+paths:
+  /register:
+    post:
+      summary: Register a node
+      description: Registers a new computing node with the Hub and establishes its capabilities.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - uid
+                - name
+              properties:
+                uid:
+                  type: string
+                  description: Unique identifier for the node (e.g. MacBookPro)
+                name:
+                  type: string
+                  description: Human-readable name
+                ip:
+                  type: string
+                  description: IP Address of the node
+                os:
+                  type: string
+                  description: Operating system of the node
+                capabilities:
+                  type: array
+                  items:
+                    type: string
+                  description: List of supported modules (e.g., ai-inference, docker)
+      responses:
+        '200':
+          description: Successfully registered
+          
+  /heartbeat:
+    post:
+      summary: Node heartbeat
+      description: Nodes must ping this endpoint periodically to remain online.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - uid
+              properties:
+                uid:
+                  type: string
+      responses:
+        '200':
+          description: Heartbeat acknowledged
+          
+  /command/{deviceId}:
+    post:
+      summary: Execute bash command
+      description: Executes a raw bash command on the target device via the tunnel.
+      parameters:
+        - in: path
+          name: deviceId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - command
+              properties:
+                command:
+                  type: string
+                  example: "ls -la"
+                timeout:
+                  type: integer
+                  description: Execution timeout in ms
+      responses:
+        '200':
+          description: Command execution results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stdout:
+                    type: string
+                  stderr:
+                    type: string
+                  code:
+                    type: integer
+
+  /ai/{deviceId}:
+    post:
+      summary: Execute AI Prompt (Stateless)
+      description: Sends a prompt to an AI node for agentic tool-calling and response synthesis.
+      parameters:
+        - in: path
+          name: deviceId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - prompt
+                - model
+              properties:
+                prompt:
+                  type: string
+                model:
+                  type: string
+      responses:
+        '200':
+          description: AI Response
+
+  /api/docker/{deviceId}/containers:
+    get:
+      summary: List Docker Containers
+      description: Retrieves a list of all running and stopped Docker containers on the target node.
+      parameters:
+        - in: path
+          name: deviceId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Array of containers
+
+  /api/tunnels/{deviceId}:
+    get:
+      summary: List Cloudflare Tunnels
+      description: Retrieves all active Cloudflare tunnels hosted on the target node.
+      parameters:
+        - in: path
+          name: deviceId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Array of tunnels

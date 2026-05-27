@@ -50,6 +50,24 @@ app.use("/api/chats", require("./routes/chats"));
 app.use("/api/chats", require("./routes/agent"));
 app.use("/api/tunnels", require("./routes/tunnels"));
 
+// ── API Documentation (Swagger) ──────────────────────────────────────────────
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+try {
+    const swaggerDocument = YAML.load(path.join(__dirname, 'docs', 'openapi.yaml'));
+    const swaggerOptions = {
+        customCss: `
+            .swagger-ui .topbar { display: none; }
+            body { background: #0b0c10; margin: 0; padding: 20px; font-family: 'Inter', sans-serif; }
+            .swagger-ui { max-width: 1200px; margin: 0 auto; filter: invert(92%) hue-rotate(180deg); }
+        `,
+        customSiteTitle: "Cyberlife Hub API Docs"
+    };
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument, swaggerOptions));
+} catch (e) {
+    console.log("[WARNING] Could not load openapi.yaml for Swagger UI.");
+}
+
 // ── Static Dashboard ─────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, "public")));
 
