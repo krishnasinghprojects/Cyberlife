@@ -76,18 +76,7 @@ CLOUDFLARE_DOMAIN=${cf ? cf.domain : ""}
         // Seamlessly reboot the server so the user doesn't have to restart manually
         setTimeout(() => {
             console.log("\x1b[32m[SETUP] Configuration generated. Rebooting ecosystem natively...\x1b[0m");
-            
-            // Do NOT pass process.env here. Let dotenv load the fresh .env natively!
-            // We only pass PATH so the node executable resolves correctly.
-            const cleanEnv = { PATH: process.env.PATH };
-            
-            const child = spawn(process.argv[0], process.argv.slice(1), {
-                detached: true,
-                stdio: "inherit",
-                env: cleanEnv
-            });
-            child.unref();
-            process.exit(0);
+            process.emit("rebootEcosystem");
         }, 1000);
     } catch (e) {
         console.error("[SETUP ERROR] Failed to write .env:", e);

@@ -126,12 +126,24 @@ server.on("upgrade", (request, socket, head) => {
         console.error("[DB ERROR] Failed to load devices:", e);
     }
 
+    // Helper to get true LAN IP
+    function getLocalIP() {
+        for (const iface of Object.values(require("os").networkInterfaces())) {
+            for (const addr of iface) {
+                if (addr.family === "IPv4" && !addr.internal) return addr.address;
+            }
+        }
+        return "127.0.0.1";
+    }
+
+    const realHubIP = getLocalIP();
+
     // 1. Self-register the hub into the device store
     DEVICES[config.NODE_UID] = {
         uid:           config.NODE_UID,
         name:          config.NODE_NAME,
         os:            "macOS",
-        ip:            config.HUB_IP,
+        ip:            realHubIP,
         port:          config.HUB_PORT,
         capabilities:  [],   // filled dynamically below
         status:        "online",
@@ -149,7 +161,7 @@ server.on("upgrade", (request, socket, head) => {
                 port=excluded.port,
                 capabilities=excluded.capabilities,
                 last_seen=CURRENT_TIMESTAMP
-        `, [config.NODE_UID, config.NODE_NAME, "macOS", config.HUB_IP, config.HUB_PORT, "[]"]);
+        `, [config.NODE_UID, config.NODE_NAME, "macOS", realHubIP, config.HUB_PORT, "[]"]);
     } catch (e) {
         console.error("[DB ERROR] Hub failed to register in DB:", e);
     }

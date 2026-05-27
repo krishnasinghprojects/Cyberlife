@@ -35,9 +35,32 @@ if (!process.env.NODE_UID) {
     setupApp.use(express.static(path.join(__dirname, "public")));
     setupApp.use("/api", require("./routes/setup"));
     
-    setupApp.listen(8000, "0.0.0.0", () => {
-        const ip = getLocalIP();
-        console.log(`\x1b[32m[SETUP] Web UI is running. Please open http://localhost:8000 or http://${ip}:8000 in your browser.\x1b[0m`);
+    const server = setupApp.listen(8000, "0.0.0.0", () => {
+        console.log(`[BOOT] Setup Wizard available at http://${getLocalIP()}:8000`);
+    });
+    
+    // Natively hot-reload the ecosystem within the SAME process (prevents unkillable zombies)
+    process.on("rebootEcosystem", () => {
+        server.close(() => {
+            console.log("[BOOT] Setup server closed. Hot-reloading configurations...");
+            
+            // Reload the newly written .env file over the existing environment
+            require("dotenv").config({ override: true });
+            
+            // Delete require cache so they pull the fresh configurations
+            delete require.cache[require.resolve("./server.js")];
+            delete require.cache[require.resolve("./agent.js")];
+            
+            // Boot exactly what the user configured
+            if (process.env.HUB_IP) {
+                require("./server.js");
+            } else if (process.env.HUB_URL) {
+                require("./agent.js");
+            } else {
+                console.error("[BOOT ERROR] Unknown node configuration type.");
+                process.exit(1);
+            }
+        });
     });
 
 } else if (process.env.HUB_IP) {
