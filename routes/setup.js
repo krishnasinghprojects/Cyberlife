@@ -25,6 +25,7 @@ METRICS_INTERVAL_MS=5000
 # Optional configurations
 OLLAMA_URL=${ai ? ai.url : ""}
 OLLAMA_DEFAULT_MODEL=${ai ? ai.model : ""}
+OLLAMA_MODELS=${ai ? ai.model : ""}
 CLOUDFLARE_API_TOKEN=${cf ? cf.token : ""}
 CLOUDFLARE_ZONE_ID=${cf ? cf.zone : ""}
 CLOUDFLARE_ACCOUNT_ID=${cf ? cf.account : ""}
@@ -43,6 +44,7 @@ METRICS_INTERVAL_MS=5000
 # Optional configurations
 OLLAMA_URL=${ai ? ai.url : ""}
 OLLAMA_DEFAULT_MODEL=${ai ? ai.model : ""}
+OLLAMA_MODELS=${ai ? ai.model : ""}
 CLOUDFLARE_API_TOKEN=${cf ? cf.token : ""}
 CLOUDFLARE_ZONE_ID=${cf ? cf.zone : ""}
 CLOUDFLARE_ACCOUNT_ID=${cf ? cf.account : ""}

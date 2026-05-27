@@ -4,7 +4,7 @@
   "description": "Cyberlife Hub — runs on MacMini (10.120.0.250)",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node index.js"
   },
   "keywords": [],
   "author": "",
