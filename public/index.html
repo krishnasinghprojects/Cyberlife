@@ -64,6 +64,10 @@
                         role="tab" aria-selected="false" aria-controls="view-vnc">
                     <i data-lucide="monitor-play"></i>
                 </button>
+                <button class="mode-btn" id="btn-expose"
+                        role="tab" aria-selected="false" aria-controls="view-expose" title="Cloudflare Tunnels">
+                    <i data-lucide="globe"></i>
+                </button>
             </div>
 
             <!-- Stats -->
@@ -260,8 +264,58 @@
                 </div>
             </div>
 
+            <!-- EXPOSE VIEW -->
+            <div class="view expose-view hidden" id="view-expose" role="tabpanel">
+                <div class="expose-toolbar">
+                    <div class="toolbar-group">
+                        <label class="toolbar-label" for="expose-device-select">Node</label>
+                        <select class="toolbar-select" id="expose-device-select">
+                            <option value="">No Expose devices</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-group">
+                        <label class="toolbar-label" for="expose-port">Port</label>
+                        <input class="chat-input vnc-input" id="expose-port" type="number" placeholder="8000" style="width: 80px;" />
+                    </div>
+                    <div class="toolbar-group">
+                        <label class="toolbar-label" for="expose-subdomain">Subdomain</label>
+                        <input class="chat-input vnc-input" id="expose-subdomain" type="text" placeholder="portfolio" style="width: 150px;" />
+                    </div>
+                    <div class="toolbar-group">
+                        <label class="toolbar-label" for="expose-domain">Domain</label>
+                        <input class="chat-input vnc-input" id="expose-domain" type="text" placeholder="krishnasingh.live" style="width: 180px;" />
+                    </div>
+                    <div class="toolbar-actions">
+                        <button class="toolbar-btn primary" id="btn-expose-start" title="Expose Port">
+                            <i data-lucide="globe"></i>
+                            <span class="btn-label">Expose</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="docker-grid" id="expose-grid">
+                    <!-- Tunnel cards will go here -->
+                </div>
+            </div>
+
         </main>
 
+    </div>
+
+    <!-- CUSTOM CONFIRM MODAL -->
+    <div class="custom-modal-overlay hidden" id="confirm-modal-overlay">
+        <div class="custom-modal">
+            <div class="modal-header">
+                <i data-lucide="alert-triangle" style="color: var(--warning); margin-right: 8px; width: 20px; height: 20px;"></i>
+                <h3>Confirm Action</h3>
+            </div>
+            <div class="modal-body" id="confirm-modal-msg">
+                Are you sure you want to do this?
+            </div>
+            <div class="modal-footer">
+                <button class="toolbar-btn" id="confirm-btn-cancel">Cancel</button>
+                <button class="toolbar-btn toolbar-btn-danger" id="confirm-btn-ok">Confirm</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>

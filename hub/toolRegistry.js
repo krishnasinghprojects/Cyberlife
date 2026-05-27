@@ -172,6 +172,40 @@ function buildTools() {
         });
     }
 
+    // ── Port Expose (dynamic) ─────────────────────────────────────────
+
+    const exposeDevices = allDevices
+        .filter(d => d.capabilities?.includes("expose-port"))
+        .map(d => d.uid);
+
+    if (exposeDevices.length > 0) {
+        tools.push({
+            type: "function",
+            function: {
+                name: "expose_port",
+                description: `Expose a local port on a device to the internet using a Cloudflare tunnel. This will create a secure tunnel and a subdomain on the base domain. Available devices: [${exposeDevices.join(", ")}]`,
+                parameters: {
+                    type: "object",
+                    properties: {
+                        deviceId: {
+                            type: "string",
+                            description: `The device UID. Must be one of: ${exposeDevices.join(", ")}`
+                        },
+                        port: {
+                            type: "number",
+                            description: "The local port to expose (e.g. 3000, 8080)"
+                        },
+                        subdomain: {
+                            type: "string",
+                            description: "The desired subdomain (e.g. 'myapp' which becomes myapp.domain.com)"
+                        }
+                    },
+                    required: ["deviceId", "port", "subdomain"]
+                }
+            }
+        });
+    }
+
     // ── Metrics History (always available — hub has DB) ────────────────
 
     tools.push({

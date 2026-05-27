@@ -4,8 +4,6 @@ node_modules/
 # Environment variables
 .env
 
-# SQLite database file (if in data folder)
-data/cyberlife.db
 
 # Logs
 logs/
@@ -37,3 +35,4 @@ public/*.map
 .DS_Store
 
 Posts
+data/cyberlife.db

@@ -175,6 +175,22 @@ async function executeTool(toolName, args, hubPort) {
                 return { records: rows, count: rows.length };
             }
 
+            // ── Expose a port via Cloudflare Tunnel ───────────────────
+            case "expose_port": {
+                const { deviceId, port, subdomain } = args;
+
+                if (!deviceId || !port || !subdomain) {
+                    return { error: "Missing required parameters: deviceId, port, subdomain" };
+                }
+
+                const resp = await axios.post(
+                    `${baseUrl}/api/expose`,
+                    { deviceId, port, subdomain },
+                    { timeout: 60000 } // Tunnels might take a moment to provision
+                );
+                return resp.data;
+            }
+
             // ── Unknown tool ──────────────────────────────────────────
             default:
                 return { error: `Unknown tool: '${toolName}'. This tool is not registered.` };

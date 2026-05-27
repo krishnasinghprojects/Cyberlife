@@ -48,6 +48,7 @@ app.use(require("./routes/monitoring"));
 app.use("/", require("./routes/metrics"));
 app.use("/api/chats", require("./routes/chats"));
 app.use("/api/chats", require("./routes/agent"));
+app.use("/api/tunnels", require("./routes/tunnels"));
 
 // ── Static Dashboard ─────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, "public")));
@@ -181,7 +182,8 @@ server.on("upgrade", (request, socket, head) => {
         "system-monitor",
         "inference-engine",
         "ssh-engine",
-        "docker-manager"
+        "docker-manager",
+        "cloudflare-tunnel"
     ];
 
     const allModules = [];

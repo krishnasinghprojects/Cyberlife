@@ -921,6 +921,35 @@ body {
     margin-bottom: 20px;
 }
 
+.expose-view {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.expose-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+    background: var(--surface-2);
+    padding: 16px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+}
+
+.expose-toolbar .toolbar-group {
+    flex: 1 1 auto;
+    min-width: 120px;
+}
+
+.expose-toolbar .toolbar-actions {
+    margin-left: 0;
+    flex: 1 1 100%;
+    justify-content: flex-end;
+}
+
 .docker-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -1008,6 +1037,77 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
 
+/* ─── CUSTOM MODALS ───────────────────────────────────────────────────────── */
+.custom-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 0.2s;
+}
+
+.custom-modal-overlay.hidden {
+    display: none;
+    opacity: 0;
+}
+
+.custom-modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    transform: scale(1);
+    transition: transform 0.2s;
+}
+
+.custom-modal-overlay.hidden .custom-modal {
+    transform: scale(0.95);
+}
+
+.custom-modal .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+    display: flex;
+    align-items: center;
+}
+
+.custom-modal .modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.custom-modal .modal-body {
+    padding: 24px 20px;
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+}
+
+.custom-modal .modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.custom-modal .modal-footer .toolbar-btn {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+}
+
 /* ─── MOBILE OVERRIDES (< 600px) ─────────────────────────────────────────── */
 @media (max-width: 599px) {
     .hub-header {
@@ -1062,6 +1162,9 @@ body {
     .docker-toolbar { justify-content: center; }
     .docker-toolbar .btn-label { display: inline; }
     .docker-toolbar .toolbar-btn { width: 100%; justify-content: center; padding: 12px; }
+
+    .expose-toolbar .toolbar-actions { justify-content: stretch; }
+    .expose-toolbar .toolbar-btn { width: 100%; justify-content: center; padding: 12px; }
 
     .chat-messages { padding: 14px 12px; }
 

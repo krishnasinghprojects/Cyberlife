@@ -46,6 +46,16 @@ const dockerGrid   = document.getElementById("docker-grid");
 const btnVnc       = document.getElementById("btn-vnc");
 const viewVnc      = document.getElementById("view-vnc");
 const vncDeviceSel = document.getElementById("vnc-device-select");
+
+const btnExpose    = document.getElementById("btn-expose");
+const viewExpose   = document.getElementById("view-expose");
+const exposeDeviceSel = document.getElementById("expose-device-select");
+const exposePortInput = document.getElementById("expose-port");
+const exposeSubdomainInput = document.getElementById("expose-subdomain");
+const exposeDomainInput = document.getElementById("expose-domain");
+const btnExposeStart = document.getElementById("btn-expose-start");
+const exposeGrid = document.getElementById("expose-grid");
+let selectedExposeDevice = "";
 const vncHostInput = document.getElementById("vnc-host-input");
 const vncPassInput = document.getElementById("vnc-pass");
 const btnVncConnect= document.getElementById("btn-vnc-connect");
@@ -74,6 +84,7 @@ const aiDeviceSel  = document.getElementById("ai-device-select");
 const modelSel     = document.getElementById("model-select");
 const dockerDeviceSel = document.getElementById("docker-device-select");
 let selectedDockerDevice = "";
+
 const sessionBadge = document.getElementById("session-badge");
 const chatMessages = document.getElementById("chat-messages");
 const chatInput    = document.getElementById("chat-input");
@@ -108,6 +119,7 @@ ws.onmessage = ({ data }) => {
         updateHeaderStats();
         refreshAiDeviceSelect();
         if (typeof refreshDockerDeviceSelect === 'function') refreshDockerDeviceSelect();
+        if (typeof refreshExposeDeviceSelect === 'function') refreshExposeDeviceSelect();
 
     } else if (msg.type === "metrics-update") {
         allMetrics[msg.deviceId] = msg.metrics;
@@ -167,34 +179,46 @@ function initTheme() {
 }
 
 /* ─── MODE SWITCHING ──────────────────────────────────────────────────────── */
-function setMode(mode) {
-    currentMode = mode;
+function setMode(view) {
+    currentMode = view;
 
-    const isMonitor = mode === "monitoring";
-    const isChat    = mode === "chat";
-    const isSsh     = mode === "ssh";
-    const isDocker  = mode === "docker";
-    const isVnc     = mode === "vnc";
+    btnMonitor.classList.remove("active");
+    btnChat.classList.remove("active");
+    if (btnSsh) btnSsh.classList.remove("active");
+    if (btnDocker) btnDocker.classList.remove("active");
+    if (btnVnc) btnVnc.classList.remove("active");
+    if (btnExpose) btnExpose.classList.remove("active");
 
-    btnMonitor.classList.toggle("active", isMonitor);
-    btnChat.classList.toggle("active", isChat);
-    if (btnSsh) btnSsh.classList.toggle("active", isSsh);
-    if (btnDocker) btnDocker.classList.toggle("active", isDocker);
-    if (btnVnc) btnVnc.classList.toggle("active", isVnc);
+    if (viewMonitor) viewMonitor.classList.add("hidden");
+    if (viewChat) viewChat.classList.add("hidden");
+    if (viewSsh) viewSsh.classList.add("hidden");
+    if (viewDocker) viewDocker.classList.add("hidden");
+    if (viewVnc) viewVnc.classList.add("hidden");
+    if (viewExpose) viewExpose.classList.add("hidden");
 
-    btnMonitor.setAttribute("aria-selected", isMonitor);
-    btnChat.setAttribute("aria-selected", isChat);
-    if (btnSsh) btnSsh.setAttribute("aria-selected", isSsh);
-    if (btnDocker) btnDocker.setAttribute("aria-selected", isDocker);
-    if (btnVnc) btnVnc.setAttribute("aria-selected", isVnc);
+    const isMonitor = (view === "monitoring");
+    const isChat    = (view === "chat");
+    const isSsh     = (view === "ssh");
+    const isDocker  = (view === "docker");
+    const isVnc     = (view === "vnc");
+    const isExpose  = (view === "expose");
 
-    viewMonitor.classList.toggle("hidden", !isMonitor);
-    viewChat.classList.toggle("hidden", !isChat);
+    if (isMonitor) btnMonitor.classList.add("active");
+    if (isChat)    btnChat.classList.add("active");
+    if (isSsh && btnSsh) btnSsh.classList.add("active");
+    if (isDocker && btnDocker) btnDocker.classList.add("active");
+    if (isVnc && btnVnc) btnVnc.classList.add("active");
+    if (isExpose && btnExpose) btnExpose.classList.add("active");
+
+    if (viewMonitor) viewMonitor.classList.toggle("hidden", !isMonitor);
+    if (viewChat) viewChat.classList.toggle("hidden", !isChat);
     if (viewSsh) viewSsh.classList.toggle("hidden", !isSsh);
     if (viewDocker) viewDocker.classList.toggle("hidden", !isDocker);
     if (viewVnc) viewVnc.classList.toggle("hidden", !isVnc);
+    if (viewExpose) viewExpose.classList.toggle("hidden", !isExpose);
 
     if (dockerLoop) { clearInterval(dockerLoop); dockerLoop = null; }
+    if (window.exposeLoop) { clearInterval(window.exposeLoop); window.exposeLoop = null; }
 
     if (isChat) refreshAiDeviceSelect();
     if (isSsh) {
@@ -210,6 +234,11 @@ function setMode(mode) {
     if (isVnc) {
         refreshVncDeviceSelect();
     }
+    if (isExpose) {
+        if (typeof refreshExposeDeviceSelect === 'function') refreshExposeDeviceSelect();
+        fetchTunnels();
+        window.exposeLoop = setInterval(fetchTunnels, 5000);
+    }
 
     if (!isMonitor) refreshIcons();
 }
@@ -219,6 +248,7 @@ btnChat.addEventListener("click",    () => setMode("chat"));
 if (btnSsh) btnSsh.addEventListener("click", () => setMode("ssh"));
 if (btnDocker) btnDocker.addEventListener("click", () => setMode("docker"));
 if (btnVnc) btnVnc.addEventListener("click", () => setMode("vnc"));
+if (btnExpose) btnExpose.addEventListener("click", () => setMode("expose"));
 if (btnDockerRef) btnDockerRef.addEventListener("click", fetchContainers);
 
 /* ─── INIT ────────────────────────────────────────────────────────────────── */
@@ -238,6 +268,8 @@ async function init() {
         refreshAiDeviceSelect();
         refreshSshDeviceSelect();
         if (typeof refreshDockerDeviceSelect === 'function') refreshDockerDeviceSelect();
+        if (typeof refreshExposeDeviceSelect === 'function') refreshExposeDeviceSelect();
+        if (typeof refreshExposeDeviceSelect === 'function') refreshExposeDeviceSelect();
 
     } catch (err) {
         console.error("[INIT]", err.message);
@@ -1119,8 +1151,28 @@ function refreshVncDeviceSelect() {
     if (allDevices[currentVal] && allDevices[currentVal].status === "online") {
         vncDeviceSel.value = currentVal;
     } else {
-        vncHostInput.value = "";
     }
+}
+
+/* ─── EXPOSE (CLOUDFLARE TUNNELS) ────────────────────────────────────────── */
+function refreshExposeDeviceSelect() {
+    if (!exposeDeviceSel) return;
+    const prev = exposeDeviceSel.value;
+    exposeDeviceSel.innerHTML = '<option value="">Select Node</option>';
+    
+    Object.values(allDevices).forEach(d => {
+        if (d.status === "online" && d.capabilities?.includes("expose-port")) {
+            const opt = document.createElement("option");
+            opt.value = d.uid;
+            opt.textContent = d.name || d.uid;
+            exposeDeviceSel.appendChild(opt);
+        }
+    });
+
+    if (prev && allDevices[prev] && allDevices[prev].status === "online") {
+        exposeDeviceSel.value = prev;
+    }
+    selectedExposeDevice = exposeDeviceSel.value;
 }
 
 if (vncDeviceSel) {
@@ -1150,6 +1202,208 @@ function disconnectVnc() {
     btnVncConnect.classList.remove("danger");
     if (btnVncFullscreen) btnVncFullscreen.style.display = "none";
     refreshIcons();
+}
+
+/* ─── EXPOSE TUNNELS ──────────────────────────────────────────────────────── */
+function refreshExposeDeviceSelect() {
+    if (!exposeDeviceSel) return;
+    const prev = exposeDeviceSel.value;
+    exposeDeviceSel.innerHTML = '<option value="">Select Node</option>';
+    
+    Object.values(allDevices).forEach(d => {
+        if (d.status === "online" && d.capabilities?.includes("expose-port")) {
+            const opt = document.createElement("option");
+            opt.value = d.uid;
+            opt.textContent = d.name || d.uid;
+            exposeDeviceSel.appendChild(opt);
+        }
+    });
+
+    if (prev && allDevices[prev] && allDevices[prev].status === "online") {
+        exposeDeviceSel.value = prev;
+    }
+    selectedExposeDevice = exposeDeviceSel.value;
+}
+
+if (exposeDeviceSel) {
+    exposeDeviceSel.addEventListener("change", () => {
+        selectedExposeDevice = exposeDeviceSel.value;
+        fetchTunnels();
+    });
+}
+
+async function fetchTunnels() {
+    if (currentMode !== "expose") return;
+    if (!selectedExposeDevice) {
+        if (exposeGrid) exposeGrid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-dim);">Please select a node to manage tunnels.</div>`;
+        return;
+    }
+    try {
+        const res = await fetch(`/api/tunnels/${encodeURIComponent(selectedExposeDevice)}`);
+        const tunnels = await res.json();
+        renderTunnels(tunnels);
+    } catch (err) {
+        console.error("[TUNNELS] Fetch failed:", err);
+    }
+}
+
+function renderTunnels(tunnels) {
+    if (!exposeGrid) return;
+    if (tunnels.length === 0) {
+        exposeGrid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-dim);">No active tunnels on this node.</div>`;
+        return;
+    }
+    exposeGrid.innerHTML = tunnels.map(t => `
+        <div class="container-card">
+            <div class="container-head">
+                <div class="container-identity">
+                    <div class="container-name">Port ${t.port}</div>
+                    <div class="container-image" style="color: var(--accent);"><a href="${t.url}" target="_blank">${t.url}</a></div>
+                </div>
+                <div class="container-status running">Live</div>
+            </div>
+            <div class="container-actions" style="margin-top: 15px;">
+                <button class="toolbar-btn toolbar-btn-danger" onclick="stopTunnel('${t.id}')">
+                    <i data-lucide="square"></i> <span class="btn-label">Stop Tunnel</span>
+                </button>
+            </div>
+        </div>
+    `).join("");
+    refreshIcons();
+}
+
+if (btnExposeStart) {
+    btnExposeStart.addEventListener("click", async () => {
+        if (!selectedExposeDevice) return alert("Select a node first");
+        const port = exposePortInput.value;
+        const subdomain = exposeSubdomainInput.value;
+        const domain = exposeDomainInput.value;
+        if (!port || !subdomain || !domain) return alert("Please fill all fields");
+        
+        btnExposeStart.disabled = true;
+        btnExposeStart.innerHTML = `<i data-lucide="loader"></i> <span class="btn-label">Starting...</span>`;
+        
+        try {
+            const res = await fetch(`/api/tunnels/start`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ deviceId: selectedExposeDevice, port, subdomain, domain })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            fetchTunnels();
+        } catch (err) {
+            alert(`Failed to start tunnel: ${err.message}`);
+        } finally {
+            btnExposeStart.disabled = false;
+            btnExposeStart.innerHTML = `<i data-lucide="globe"></i> <span class="btn-label">Expose</span>`;
+            refreshIcons();
+        }
+    });
+}
+
+function showConfirmModal(message, onConfirm) {
+    const overlay = document.getElementById("confirm-modal-overlay");
+    const msgEl = document.getElementById("confirm-modal-msg");
+    const btnOk = document.getElementById("confirm-btn-ok");
+    const btnCancel = document.getElementById("confirm-btn-cancel");
+    
+    msgEl.textContent = message;
+    overlay.classList.remove("hidden");
+    
+    const cleanup = () => {
+        overlay.classList.add("hidden");
+        btnOk.removeEventListener("click", onOkClick);
+        btnCancel.removeEventListener("click", onCancelClick);
+    };
+    
+    const onOkClick = () => {
+        cleanup();
+        onConfirm();
+    };
+    
+    const onCancelClick = () => {
+        cleanup();
+    };
+    
+    btnOk.addEventListener("click", onOkClick);
+    btnCancel.addEventListener("click", onCancelClick);
+}
+
+window.stopTunnel = function(id) {
+    if (!selectedExposeDevice) return;
+    showConfirmModal("Are you sure you want to stop and delete this tunnel? This will disconnect any active users immediately.", async () => {
+        try {
+            await fetch(`/api/tunnels/stop/${encodeURIComponent(id)}`, { method: 'POST' });
+            fetchTunnels();
+        } catch (err) {
+            console.error("Failed to stop tunnel:", err);
+        }
+    });
+};
+
+const btnExposeRefresh = document.getElementById("btn-expose-refresh");
+if (btnExposeRefresh) btnExposeRefresh.addEventListener("click", fetchTunnels);
+
+if (exposeDeviceSel) {
+    exposeDeviceSel.addEventListener("change", () => {
+        selectedExposeDevice = exposeDeviceSel.value;
+        fetchTunnels();
+    });
+}
+
+async function fetchTunnels() {
+    if (currentMode !== "expose") return;
+    const grid = document.getElementById("expose-grid");
+    if (!grid) return;
+
+    if (!selectedExposeDevice) {
+        grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-dim);">Please select a node to view its tunnels.</div>`;
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/tunnels/${encodeURIComponent(selectedExposeDevice)}`);
+        if (!res.ok) throw new Error("Fetch failed");
+        
+        const tunnels = await res.json();
+        
+        if (tunnels.length === 0) {
+            grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-dim);">No active tunnels on this node.</div>`;
+            return;
+        }
+
+        grid.innerHTML = tunnels.map(t => `
+            <div class="container-card">
+                <div class="container-head">
+                    <div class="container-identity">
+                        <div class="container-name">
+                            <i data-lucide="globe" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px; color: var(--accent);"></i>
+                            ${esc(t.subdomain)}.${esc(t.domain)}
+                        </div>
+                        <div class="container-image">Port ${esc(t.port)}</div>
+                    </div>
+                    <div class="container-status running">ACTIVE</div>
+                </div>
+                
+                <div style="padding: 16px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; border-bottom: 1px solid var(--border);">
+                    <a href="${esc(t.url)}" target="_blank" style="color: var(--text); font-weight: 500; font-family: var(--font-mono); text-decoration: none; word-break: break-all; font-size: 0.85rem; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-3); display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; transition: border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+                        ${esc(t.url)} <i data-lucide="external-link" style="width: 14px; height: 14px; color: var(--accent);"></i>
+                    </a>
+                </div>
+
+                <div class="container-actions">
+                    <button class="toolbar-btn toolbar-btn-danger" onclick="stopTunnel('${t.id}')">
+                        <i data-lucide="power"></i> <span class="btn-label">Stop & Delete Tunnel</span>
+                    </button>
+                </div>
+            </div>
+        `).join("");
+        
+        refreshIcons();
+    } catch (err) {
+        grid.innerHTML = `<div class="empty-state" style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--error);">Error loading tunnels: ${err.message}</div>`;
+    }
 }
 
 if (btnVncFullscreen) {
