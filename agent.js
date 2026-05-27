@@ -9,6 +9,23 @@ const path    = require("path");
 
 const { loadModules } = require("./hub/moduleLoader");
 
+// ── SETUP MODE INTERCEPT ─────────────────────────────────────────────────────
+if (!process.env.HUB_URL && !process.env.NODE_UID) {
+    console.log("\x1b[33m[SETUP] No .env found. Entering Setup Mode...\x1b[0m");
+    const cors = require("cors");
+    const setupApp = express();
+    setupApp.use(cors());
+    setupApp.use(express.json());
+    // Force root to serve setup.html before express.static defaults to index.html
+    setupApp.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "setup.html")));
+    setupApp.use(express.static(path.join(__dirname, "public")));
+    setupApp.use("/api", require("./routes/setup"));
+    
+    setupApp.listen(8000, "0.0.0.0", () => {
+        console.log("\x1b[32m[SETUP] Web UI is running. Please open http://localhost:8000 in your browser.\x1b[0m");
+    });
+} else {
+
 // ── Config from .env ─────────────────────────────────────────────────────────
 const config = {
     HUB_URL:              process.env.HUB_URL,
@@ -124,3 +141,5 @@ app.get("/ping", (_req, res) => res.json({ ok: true, uid: config.NODE_UID }));
     });
 
 })();
+
+}

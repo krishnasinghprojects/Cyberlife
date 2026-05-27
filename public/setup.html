@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" style="background: #0b0c10;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberlife Initialization</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: #0b0c10; /* Solid dark background to prevent gray flashes */
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+        }
+        .setup-card {
+            background: #13141a;
+            border: 1px solid rgba(220, 20, 60, 0.2);
+            border-radius: 12px;
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 40px rgba(220, 20, 60, 0.05);
+            max-height: 90vh;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+        
+        /* Custom Scrollbar */
+        .setup-card::-webkit-scrollbar { width: 8px; }
+        .setup-card::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+        .setup-card::-webkit-scrollbar-thumb { background: rgba(220,20,60,0.4); border-radius: 4px; }
+        .setup-card::-webkit-scrollbar-thumb:hover { background: rgba(220,20,60,0.8); }
+
+        .setup-card h2 {
+            margin-top: 0;
+            color: #dc143c;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #8b8d98;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .form-group input[type="text"], .form-group select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #f8f9fa;
+            border-radius: 6px;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            box-sizing: border-box;
+        }
+        .form-group input[type="text"]:focus, .form-group select:focus {
+            outline: none;
+            border-color: #dc143c;
+            box-shadow: 0 0 0 2px rgba(220, 20, 60, 0.2);
+        }
+        
+        /* Custom Red Circle Checkbox */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 12px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .checkbox-group:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(220, 20, 60, 0.3);
+        }
+        .checkbox-group label {
+            margin-bottom: 0;
+            font-size: 1rem;
+            color: #f8f9fa;
+            cursor: pointer;
+            flex-grow: 1;
+        }
+        
+        .custom-checkbox {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            background: transparent;
+            cursor: pointer;
+            position: relative;
+            outline: none;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+        .custom-checkbox:checked {
+            border-color: #dc143c;
+            background: transparent;
+        }
+        .custom-checkbox:checked::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px;
+            height: 10px;
+            background: #dc143c;
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(220, 20, 60, 0.8);
+        }
+        .custom-checkbox:disabled {
+            border-color: #dc143c;
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .module-settings {
+            margin-top: 10px;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-left: 3px solid #dc143c;
+            border-radius: 0 8px 8px 0;
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .module-settings .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: #dc143c;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin-top: 30px;
+            box-shadow: 0 4px 15px rgba(220, 20, 60, 0.3);
+        }
+        .btn-submit:hover { 
+            background: #e6153f;
+            box-shadow: 0 6px 20px rgba(220, 20, 60, 0.5);
+            transform: translateY(-1px);
+        }
+        
+        .success-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(11, 12, 16, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: #dc143c;
+            display: none;
+            backdrop-filter: blur(5px);
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(220, 20, 60, 0.2);
+            border-top-color: #dc143c;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .section-title {
+            margin-top: 35px;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+            color: #f8f9fa;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-card" id="main-card">
+        <h2><i data-lucide="cpu" style="width: 28px; height: 28px;"></i> Cyberlife Initialization</h2>
+        <p style="color: #8b8d98; margin-bottom: 25px; line-height: 1.5;">Welcome to the ecosystem. Please configure this node's identity and capabilities to join the network.</p>
+        
+        <form id="setup-form">
+            <div class="section-title">Core Identity</div>
+            <div class="form-group">
+                <label>Node Type</label>
+                <select id="node-type" required onchange="toggleAgentFields()">
+                    <option value="hub">Central Hub</option>
+                    <option value="agent">Remote Agent</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Node ID</label>
+                <input type="text" id="node-uid" required placeholder="e.g. MacMini (No spaces)">
+            </div>
+
+            <div class="form-group">
+                <label>Display Name</label>
+                <input type="text" id="node-name" required placeholder="e.g. Office Mac Mini">
+            </div>
+
+            <div class="form-group" id="group-hub-ip" style="display: none;">
+                <label>Central Hub Address (Auto-detected from current URL)</label>
+                <input type="text" id="hub-ip" placeholder="http://192.168.1.100:8000">
+            </div>
+
+            <div class="section-title">Module Selection</div>
+            
+            <label class="checkbox-group">
+                <input type="checkbox" id="mod-cmd" class="custom-checkbox" checked disabled>
+                <span for="mod-cmd">Command Executor (Required)</span>
+            </label>
+            <label class="checkbox-group">
+                <input type="checkbox" id="mod-sys" class="custom-checkbox" checked disabled>
+                <span for="mod-sys">System Monitor (Required)</span>
+            </label>
+            
+            <label class="checkbox-group">
+                <input type="checkbox" id="mod-ssh" class="custom-checkbox" checked>
+                <span for="mod-ssh">SSH Engine (Web Terminal & VNC)</span>
+            </label>
+
+            <label class="checkbox-group">
+                <input type="checkbox" id="mod-docker" class="custom-checkbox" checked>
+                <span for="mod-docker">Docker Manager</span>
+            </label>
+
+            <div>
+                <label class="checkbox-group">
+                    <input type="checkbox" id="mod-ai" class="custom-checkbox" onchange="toggleSettings('ai-settings', this.checked)">
+                    <span for="mod-ai">AI Inference Engine (Ollama)</span>
+                </label>
+                <div class="module-settings" id="ai-settings">
+                    <div class="form-group">
+                        <label>Ollama URL</label>
+                        <input type="text" id="ai-url" value="http://127.0.0.1:11434">
+                    </div>
+                    <div class="form-group">
+                        <label>Default Model</label>
+                        <input type="text" id="ai-model" value="llama3.2">
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <label class="checkbox-group">
+                    <input type="checkbox" id="mod-cf" class="custom-checkbox" onchange="toggleSettings('cf-settings', this.checked)">
+                    <span for="mod-cf">Cloudflare Tunnels (Remote Expose)</span>
+                </label>
+                <div class="module-settings" id="cf-settings">
+                    <div class="form-group">
+                        <label>API Token</label>
+                        <input type="text" id="cf-token" placeholder="cfut_...">
+                    </div>
+                    <div class="form-group">
+                        <label>Zone ID</label>
+                        <input type="text" id="cf-zone" placeholder="32-character string">
+                    </div>
+                    <div class="form-group">
+                        <label>Account ID</label>
+                        <input type="text" id="cf-account" placeholder="32-character string">
+                    </div>
+                    <div class="form-group">
+                        <label>Root Domain</label>
+                        <input type="text" id="cf-domain" placeholder="e.g. yourdomain.com">
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit" id="btn-submit">Initialize Node</button>
+        </form>
+    </div>
+
+    <!-- Fullscreen Loading Overlay -->
+    <div class="success-overlay" id="success-overlay">
+        <div class="spinner"></div>
+        <h2 style="margin: 0;">Rebooting Cyberlife...</h2>
+        <p style="color: #8b8d98; margin-top: 10px;">Please wait while the ecosystem comes online.</p>
+    </div>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        lucide.createIcons();
+
+        // Auto-fill Hub IP based on the browser's current URL
+        document.getElementById("hub-ip").value = window.location.origin;
+
+        function toggleAgentFields() {
+            const type = document.getElementById("node-type").value;
+            document.getElementById("group-hub-ip").style.display = type === "agent" ? "block" : "none";
+        }
+
+        function toggleSettings(id, show) {
+            document.getElementById(id).style.display = show ? "block" : "none";
+        }
+
+        document.getElementById("setup-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            
+            // Show full screen overlay
+            document.getElementById("success-overlay").style.display = "flex";
+
+            const modules = ["command-executor", "system-monitor"];
+            if (document.getElementById("mod-ssh").checked) modules.push("ssh-engine");
+            if (document.getElementById("mod-docker").checked) modules.push("docker-manager");
+            if (document.getElementById("mod-ai").checked) modules.push("inference-engine");
+            if (document.getElementById("mod-cf").checked) modules.push("cloudflare-tunnel");
+
+            const payload = {
+                type: document.getElementById("node-type").value,
+                uid: document.getElementById("node-uid").value,
+                name: document.getElementById("node-name").value,
+                hubUrl: document.getElementById("hub-ip").value,
+                modules: modules.join(", "),
+                ai: document.getElementById("mod-ai").checked ? {
+                    url: document.getElementById("ai-url").value,
+                    model: document.getElementById("ai-model").value
+                } : null,
+                cf: document.getElementById("mod-cf").checked ? {
+                    token: document.getElementById("cf-token").value,
+                    zone: document.getElementById("cf-zone").value,
+                    account: document.getElementById("cf-account").value,
+                    domain: document.getElementById("cf-domain").value
+                } : null
+            };
+
+            try {
+                const res = await fetch("/api/setup/complete", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (res.ok) {
+                    // Start polling the root endpoint to see when the server is back
+                    const checkServer = setInterval(async () => {
+                        try {
+                            const ping = await fetch("/");
+                            if (ping.ok) {
+                                clearInterval(checkServer);
+                                window.location.href = "/"; // Reload the dashboard!
+                            }
+                        } catch(err) {
+                            // still restarting
+                        }
+                    }, 1000);
+                } else {
+                    alert("Failed to write configuration");
+                    document.getElementById("success-overlay").style.display = "none";
+                }
+            } catch(e) {
+                alert("Network error.");
+                document.getElementById("success-overlay").style.display = "none";
+            }
+        });
+    </script>
+</body>
+</html>
